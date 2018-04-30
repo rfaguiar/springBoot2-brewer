@@ -1,0 +1,20 @@
+language: java
+script:
+ - mvn clean install
+jdk:
+ - oraclejdk8
+
+deploy:
+  provider: heroku
+  api-key:
+   secure: $HEROKU_API_KEY
+  app: brewer-springboot-app1
+
+addons:
+  sonarcloud:
+    organization: "rfaguiar-github" # "sonarcloud_organization_key"  the key of the org you chose at step #3
+    token:
+      secure: $SONAR_TOKEN_SPRING_BOOT # encrypted value of your token
+script:
+  # other script steps might be done before running the actual analysis
+   - mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar
