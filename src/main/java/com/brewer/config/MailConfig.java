@@ -3,7 +3,6 @@ package com.brewer.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
@@ -17,7 +16,6 @@ public class MailConfig {
     private Environment env;
 
 	@Bean
-	@Profile("!prod")
 	public JavaMailSender mailSenderLocal(){
         return createJavaMailSender(env.getProperty("brewer.email.username"), env.getProperty("brewer.email.password"));
 	}
