@@ -17,11 +17,14 @@ import java.time.LocalTime;
 @Service
 public class CadastroVendaService {
 
-	@Autowired
 	private Vendas vendas;
-	
-	@Autowired
 	private ApplicationEventPublisher publish;
+
+	@Autowired
+	public CadastroVendaService(Vendas vendas, ApplicationEventPublisher publish) {
+		this.vendas = vendas;
+		this.publish = publish;
+	}
 	
 	@Transactional
 	public Venda salvar(Venda venda) {

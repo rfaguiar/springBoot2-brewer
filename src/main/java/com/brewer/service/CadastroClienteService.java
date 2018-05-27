@@ -12,18 +12,22 @@ import java.util.Optional;
 @Service
 public class CadastroClienteService {
 
+	private Clientes clientesRepo;
+
 	@Autowired
-	private Clientes clientes;
+	public CadastroClienteService(Clientes clientesRepo) {
+		this.clientesRepo = clientesRepo;
+	}
 	
 	@Transactional
 	public void salvar(Cliente cliente){
 		
-		Optional<Cliente> clientesExistentes = clientes.findByCpfOuCnpj(cliente.getCpfOuCnpjSemFormatacao());
+		Optional<Cliente> clientesExistentes = clientesRepo.findByCpfOuCnpj(cliente.getCpfOuCnpjSemFormatacao());
 		
 		if(clientesExistentes.isPresent()){
 			throw new CpfCnpjClienteJaCadastradoException("CPF/CNPJ já cadastrado");
 		}
-		
-		clientes.save(cliente);
+
+		clientesRepo.save(cliente);
 	}
 }

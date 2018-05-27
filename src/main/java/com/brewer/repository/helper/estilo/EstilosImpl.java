@@ -1,11 +1,11 @@
 package com.brewer.repository.helper.estilo;
 
 import com.brewer.model.Estilo;
-import com.brewer.repository.Estilos;
 import com.brewer.repository.filter.EstiloFilter;
 import com.brewer.repository.paginacao.PaginacaoUtil;
 import org.hibernate.Criteria;
 import org.hibernate.Session;
+import org.hibernate.criterion.MatchMode;
 import org.hibernate.criterion.Projections;
 import org.hibernate.criterion.Restrictions;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,10 +25,17 @@ public class EstilosImpl implements EstilosQueries {
 	
 	@Autowired
 	private PaginacaoUtil paginacaoUtil;
-	
+
+	public EstilosImpl() {}
+
+	public EstilosImpl(EntityManager manager, PaginacaoUtil paginacaoUtil) {
+		this.manager = manager;
+		this.paginacaoUtil = paginacaoUtil;
+	}
+
 	@SuppressWarnings("unchecked")
 	@Transactional(readOnly = true)
-	public Page<Estilos> filtrar(EstiloFilter filtro, Pageable pageable){
+	public Page<Estilo> filtrar(EstiloFilter filtro, Pageable pageable){
 		
 		Criteria criteria = manager.unwrap(Session.class).createCriteria(Estilo.class);
 		
@@ -48,7 +55,7 @@ public class EstilosImpl implements EstilosQueries {
 	
 	private void adicionarfiltro(EstiloFilter filtro, Criteria criteria) {
 		if(filtro != null && !StringUtils.isEmpty(filtro.getNome())){
-			criteria.add(Restrictions.eq("nome", filtro.getNome()));
+            criteria.add(Restrictions.ilike("nome", filtro.getNome(), MatchMode.ANYWHERE));
 		}
 	}
 

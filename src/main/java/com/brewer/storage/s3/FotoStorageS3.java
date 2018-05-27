@@ -26,10 +26,8 @@ import java.io.InputStream;
 public class FotoStorageS3 implements FotoStorage {
 
     private static final Logger logger = LoggerFactory.getLogger(FotoStorageS3.class);
-
     @Value("${brewer.amazons3.bucket}")
     private String bucketName;
-
     @Autowired
     private AmazonS3 amazonS3;
 

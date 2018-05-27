@@ -31,7 +31,15 @@ public class CervejasImpl implements CervejasQueries{
 	private PaginacaoUtil paginacaoUtil;
     @Autowired
     private FotoStorage fotoStorage;
-	
+
+	public CervejasImpl() {}
+
+	public CervejasImpl(EntityManager manager, PaginacaoUtil paginacaoUtil, FotoStorage fotoStorage) {
+		this.manager = manager;
+		this.paginacaoUtil = paginacaoUtil;
+		this.fotoStorage = fotoStorage;
+	}
+
 	@SuppressWarnings("unchecked")
 	@Transactional(readOnly = true)
 	public Page<Cerveja> filtrar(CervejaFilter filtro, Pageable pageable){

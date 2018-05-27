@@ -10,15 +10,19 @@ import org.springframework.stereotype.Component;
 @Component
 public class VendaListener {
 
+	private Cervejas cervejasRepo;
+
 	@Autowired
-	private Cervejas cervejas;
+	public VendaListener(Cervejas cervejasRepo) {
+		this.cervejasRepo = cervejasRepo;
+	}
 	
 	@EventListener	
 	public void vendaEmitida(VendaEvent vendaEvent){
 		for(ItemVenda item :vendaEvent.getVenda().getItens()){
-			Cerveja cerveja = cervejas.getOne(item.getCerveja().getCodigo());
+			Cerveja cerveja = cervejasRepo.getOne(item.getCerveja().getCodigo());
 			cerveja.setQuantidadeEstoque(cerveja.getQuantidadeEstoque() - item.getQuantidade());
-			cervejas.save(cerveja);
+			cervejasRepo.save(cerveja);
 			
 		}
 	}

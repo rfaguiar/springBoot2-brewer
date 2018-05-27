@@ -15,10 +15,14 @@ import java.util.*;
 @Service
 public class AppUserDetailsService implements UserDetailsService {
 
-	@Autowired
 	private Usuarios usuarios;
-	
-	@Override
+
+	@Autowired
+    public AppUserDetailsService(Usuarios usuarios) {
+		this.usuarios = usuarios;
+	}
+
+    @Override
 	public UserDetails loadUserByUsername(String email) {
 		Optional<Usuario> usuarioOptional = usuarios.porEmailEAtivo(email);
 		Usuario usuario = usuarioOptional.orElseThrow(() -> new UsernameNotFoundException("Usuário e/ou senha incorretos"));

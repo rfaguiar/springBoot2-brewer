@@ -30,7 +30,14 @@ public class UsuariosImpl implements UsuariosQueries {
 	
 	@Autowired
 	private PaginacaoUtil paginacaoUtil;
-	
+
+	public UsuariosImpl() {}
+
+	public UsuariosImpl(EntityManager manager, PaginacaoUtil paginacaoUtil) {
+		this.manager = manager;
+		this.paginacaoUtil = paginacaoUtil;
+	}
+
 	@Override
 	public Optional<Usuario> porEmailEAtivo(String email) {
 		return manager

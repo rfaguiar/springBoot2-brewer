@@ -34,8 +34,15 @@ public class VendasImpl implements VendasQueries {
 	
 	@Autowired
 	private PaginacaoUtil paginacaoUtil;
-	
-	@SuppressWarnings("unchecked")
+
+	public VendasImpl() {}
+
+	public VendasImpl(EntityManager entityManager, PaginacaoUtil paginacaoUtil) {
+		this.manager = entityManager;
+		this.paginacaoUtil = paginacaoUtil;
+	}
+
+    @SuppressWarnings("unchecked")
 	@Transactional(readOnly = true)
 	@Override
 	public Page<Venda> filtrar(VendaFilter filtro, Pageable pageable) {
