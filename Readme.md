@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/rfaguiar/springBoot2-brewer.svg?branch=master)](https://travis-ci.org/rfaguiar/springBoot2-brewer)
+[![Deploy](https://www.herokucdn.com/deploy/button.png)](https://brewer-springboot-app1.herokuapp.com/) [![Build Status](https://travis-ci.org/rfaguiar/springBoot2-brewer.svg?branch=master)](https://travis-ci.org/rfaguiar/springBoot2-brewer)
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=com.brewer%3Abrewer-springboot&metric=alert_status)](https://sonarcloud.io/dashboard?id=com.brewer%3Abrewer-springboot)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=com.brewer%3Abrewer-springboot&metric=coverage)](https://sonarcloud.io/component_measures?id=com.brewer%3Abrewer-springboot&metric=Coverage)  
 
