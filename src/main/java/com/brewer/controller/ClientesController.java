@@ -28,26 +28,28 @@ import java.util.List;
 @Controller
 @RequestMapping("/clientes")
 public class ClientesController {
-	
+
+	private Estados estadosRepo;
+	private CadastroClienteService cadastroClienteService;
+	private Clientes clientesRepo;
+
 	@Autowired
-	private Estados estados;
-	
-	@Autowired
-	CadastroClienteService cadastroClienteService;
-	
-	@Autowired
-	Clientes clientes;
+	public ClientesController(Estados estadosRepo, CadastroClienteService cadastroClienteService, Clientes clientesRepo) {
+		this.estadosRepo = estadosRepo;
+		this.cadastroClienteService = cadastroClienteService;
+		this.clientesRepo = clientesRepo;
+	}
 
 	@RequestMapping("/novo")
 	public ModelAndView novo(Cliente cliente){		
 		ModelAndView mv = new ModelAndView("cliente/CadastroCliente");
 		mv.addObject("tiposPessoa", TipoPessoa.values());
-		mv.addObject("estados", estados.findAll());
+		mv.addObject("estados", estadosRepo.findAll());
 		return mv;				
 	}
 	
 	@PostMapping(value = "/novo")
-	public ModelAndView cadastrar(@Valid Cliente cliente, BindingResult result, Model model, RedirectAttributes attributes){
+	public ModelAndView cadastrar(@Valid Cliente cliente, BindingResult result, RedirectAttributes attributes){
 		if(result.hasErrors()){
 			return novo(cliente);
 		}
@@ -65,7 +67,7 @@ public class ClientesController {
 	public ModelAndView pesquisar(ClienteFilter clienteFilter, BindingResult result, @PageableDefault(size = 2) Pageable pageable, HttpServletRequest httpServletRequest){
 		ModelAndView mv = new ModelAndView("cliente/PesquisaClientes");
 		
-		PageWrapper<Cliente> paginaWrapper = new PageWrapper<>(clientes.filtrar(clienteFilter, pageable), httpServletRequest);
+		PageWrapper<Cliente> paginaWrapper = new PageWrapper<>(clientesRepo.filtrar(clienteFilter, pageable), httpServletRequest);
 		mv.addObject("pagina", paginaWrapper);
 		return mv;
 	}
@@ -75,7 +77,7 @@ public class ClientesController {
 		
 		validarTamanhoNome(nome);
 		
-		return clientes.findByNomeStartingWithIgnoreCase(nome);
+		return clientesRepo.findByNomeStartingWithIgnoreCase(nome);
 	}
 
 	private void validarTamanhoNome(String nome) {

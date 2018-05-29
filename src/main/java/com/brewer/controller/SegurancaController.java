@@ -1,5 +1,6 @@
 package com.brewer.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Controller;
@@ -18,6 +19,6 @@ public class SegurancaController {
 	
 	@GetMapping("/403")
 	public String acessoNegado(){
-		return "403";
+		return HttpStatus.UNAUTHORIZED.toString();
 	}
 }

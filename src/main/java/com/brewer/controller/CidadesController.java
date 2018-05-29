@@ -27,27 +27,28 @@ import java.util.List;
 @RequestMapping("/cidades")
 public class CidadesController {
 
-	@Autowired
-	private Cidades cidades;
-	
-	
-	@Autowired
-	private Estados estados;
-	
-	@Autowired
+	private Cidades cidadesRepo;
+	private Estados estadosRepo;
 	private CadastroCidadeService cadastroCidadeService;
+
+	@Autowired
+	public CidadesController(Cidades cidadesRepo, Estados estadosRepo, CadastroCidadeService cadastroCidadeService) {
+		this.cidadesRepo = cidadesRepo;
+		this.estadosRepo = estadosRepo;
+		this.cadastroCidadeService = cadastroCidadeService;
+	}
 	
 	@RequestMapping("/novo")
 	public ModelAndView nova(Cidade cidade) {
 		ModelAndView mv = new ModelAndView("cidade/CadastroCidade");
-		mv.addObject("estados", estados.findAll());
+		mv.addObject("estados", estadosRepo.findAll());
 		return mv;
 	}
 	
 	@Cacheable(value = "cidades", key = "#codigoEstado")
 	@RequestMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
 	public @ResponseBody List<Cidade> pesquisarPorCodigoEstado(@RequestParam(name = "estado", defaultValue = "-1") Long codigoEstado){
-		return cidades.findByEstadoCodigo(codigoEstado);
+		return cidadesRepo.findByEstadoCodigo(codigoEstado);
 	}
 	
 	
@@ -70,12 +71,11 @@ public class CidadesController {
 	}
 	
 	@GetMapping
-	public ModelAndView pesquisar(CidadeFilter cidadeFilter, BindingResult result
-			, @PageableDefault(size = 10) Pageable pageable, HttpServletRequest httpServletRequest) {
+	public ModelAndView pesquisar(CidadeFilter cidadeFilter, @PageableDefault(size = 10) Pageable pageable, HttpServletRequest httpServletRequest) {
 		ModelAndView mv = new ModelAndView("cidade/PesquisaCidades");
-		mv.addObject("estados", estados.findAll());
+		mv.addObject("estados", estadosRepo.findAll());
 		
-		PageWrapper<Cidade> paginaWrapper = new PageWrapper<>(cidades.filtrar(cidadeFilter, pageable)
+		PageWrapper<Cidade> paginaWrapper = new PageWrapper<>(cidadesRepo.filtrar(cidadeFilter, pageable)
 				, httpServletRequest);
 		mv.addObject("pagina", paginaWrapper);
 		return mv;

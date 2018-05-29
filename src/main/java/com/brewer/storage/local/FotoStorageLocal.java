@@ -12,7 +12,6 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -26,22 +25,17 @@ public class FotoStorageLocal implements FotoStorage {
 
     private static final Logger logger = LoggerFactory.getLogger(FotoStorageLocal.class);
 
-    @Value("${brewer.foto-storage-local.local}")
     private Path local;
 
-    @Value("${brewer.foto-storage-local.url-base}")
-    private String urlBase;
+    public FotoStorageLocal(@Value("${brewer.foto-storage-local.local}") Path path) {
+        this.local = path;
+        criarPastas();
+    }
 
-
-    @PostConstruct
     private void criarPastas() {
         try {
             Files.createDirectories(this.local);
-
-            if (logger.isDebugEnabled()) {
-                logger.debug("Pastas criadas para salvar fotos.");
-                logger.debug(String.format("Pasta default: %s", this.local.toAbsolutePath()));
-            }
+            logger.debug("Pastas criadas para salvar fotos.");
         } catch (IOException e) {
             throw new FotoStorageException("Erro criando pasta para salvar foto", e);
         }
@@ -84,19 +78,19 @@ public class FotoStorageLocal implements FotoStorage {
     }
 
     @Override
-    public void excluir(String foto) {
+    public boolean excluir(String foto) {
         try {
             Files.deleteIfExists(this.local.resolve(foto));
             Files.deleteIfExists(this.local.resolve(Constantes.THUMBNAIL_PREFIX + foto));
+            return true;
         } catch (IOException e) {
-            logger.warn(String.format("Erro apagando foto '%s'. Mensagem: %s", foto, e.getMessage()));
+            throw new FotoStorageException(String.format("Erro apagando foto '%s'.", foto), e);
         }
-
     }
 
     @Override
     public String getUrl(String foto) {
-        return urlBase + foto;
+        return "http://localhost:8080/fotos/" + foto;
     }
 
 }

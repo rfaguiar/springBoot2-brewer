@@ -12,8 +12,12 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/fotos")
 public class FotosController {
 
-	@Autowired
 	private FotoStorage fotoStorage;
+
+	@Autowired
+	public FotosController(FotoStorage fotoStorage) {
+		this.fotoStorage = fotoStorage;
+	}
 
 	@PostMapping
 	public DeferredResult<FotoDTO> upload(@RequestParam("files[]") MultipartFile[] files) {

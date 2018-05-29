@@ -30,26 +30,28 @@ import java.util.List;
 @RequestMapping("/cervejas")
 public class CervejasController {
 
-	@Autowired
 	private CadastroCervejaService cadastroCervejaService;
-	
+	private Estilos estilosRepo;
+	private Cervejas cervejasRepo;
+
 	@Autowired
-	private Estilos estilos;
-	
-	@Autowired
-	private Cervejas cervejas;
+	public CervejasController(CadastroCervejaService cadastroCervejaService, Estilos estilos, Cervejas cervejas) {
+		this.cadastroCervejaService = cadastroCervejaService;
+		this.estilosRepo = estilos;
+		this.cervejasRepo = cervejas;
+	}
 
 	@RequestMapping("/novo")
 	public ModelAndView novo(Cerveja cerveja) {
 		ModelAndView mv = new ModelAndView("cerveja/CadastroCerveja");
 		mv.addObject("sabores", Sabor.values());
-		mv.addObject("estilos", estilos.findAll());
+		mv.addObject("estilos", estilosRepo.findAll());
 		mv.addObject("origens", Origem.values());
 		return mv;
 	}
 	
 	@RequestMapping(value = {"/novo", "{\\d+}"}, method = RequestMethod.POST)
-	public ModelAndView salvar(@Valid Cerveja cerveja, BindingResult result, Model model, RedirectAttributes attributes){
+	public ModelAndView salvar(@Valid Cerveja cerveja, BindingResult result, RedirectAttributes attributes){
 		if(result.hasErrors()){
 			return novo(cerveja);
 		}
@@ -61,21 +63,21 @@ public class CervejasController {
 	}
 	
 	@GetMapping
-	public ModelAndView pesquisar(CervejaFilter cervejaFilter, BindingResult result, @PageableDefault(size = 2) Pageable pageable, HttpServletRequest httpServletRequest){
+	public ModelAndView pesquisar(CervejaFilter cervejaFilter, @PageableDefault(size = 2) Pageable pageable, HttpServletRequest httpServletRequest){
 		ModelAndView mv = new ModelAndView("cerveja/PesquisaCervejas");
 		mv.addObject("sabores", Sabor.values());
-		mv.addObject("estilos", estilos.findAll());
+		mv.addObject("estilos", estilosRepo.findAll());
 		mv.addObject("origens", Origem.values());
 		
 		
-		PageWrapper<Cerveja> paginaWrapper = new PageWrapper<>(cervejas.filtrar(cervejaFilter, pageable), httpServletRequest);
+		PageWrapper<Cerveja> paginaWrapper = new PageWrapper<>(cervejasRepo.filtrar(cervejaFilter, pageable), httpServletRequest);
 		mv.addObject("pagina", paginaWrapper);
 		return mv;
 	}
 	
 	@RequestMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
 	public @ResponseBody List<CervejaDTO> pesquisar(String skuOuNome){
-		return cervejas.porSkuOuNome(skuOuNome);
+		return cervejasRepo.porSkuOuNome(skuOuNome);
 	}
 	
 	@DeleteMapping("/{codigo}")

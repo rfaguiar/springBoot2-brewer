@@ -4,6 +4,7 @@ import com.brewer.BrewerApplication;
 import com.brewer.Constantes;
 import com.brewer.model.Cerveja;
 import com.brewer.storage.FotoStorage;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import javax.persistence.PostLoad;
 

@@ -38,23 +38,22 @@ public class VendasController {
     private static final String MENSAGEM = "mensagem";
     private static final String REDIRECT_VENDAS_NOVA = "redirect:/vendas/nova";
 
-    @Autowired
-	private Cervejas cervejas;
-	
-	@Autowired
+	private Cervejas cervejasRepo;
 	private TabelasItensSession tabelaItens;
-	
-	@Autowired
 	private CadastroVendaService cadastroVendaService;
-	
-	@Autowired
 	private VendaValidator vendaValidator;
-	
-	@Autowired
-	private Vendas vendas;
-	
-	@Autowired
+	private Vendas vendasRepo;
 	private Mailer mailer;
+
+	@Autowired
+	public VendasController(Cervejas cervejasRepo, TabelasItensSession tabelaItens, CadastroVendaService cadastroVendaService, VendaValidator vendaValidator, Vendas vendasRepo, Mailer mailer) {
+		this.cervejasRepo = cervejasRepo;
+		this.tabelaItens = tabelaItens;
+		this.cadastroVendaService = cadastroVendaService;
+		this.vendaValidator = vendaValidator;
+		this.vendasRepo = vendasRepo;
+		this.mailer = mailer;
+	}
 
 	@GetMapping("/nova")
 	public ModelAndView nova(Venda venda) {
@@ -118,7 +117,7 @@ public class VendasController {
 	
 	@PostMapping("/item")
 	public ModelAndView adicionarItem(Long codigoCerveja, String uuid) {
-		Cerveja cerveja = cervejas.getOne(codigoCerveja);
+		Cerveja cerveja = cervejasRepo.getOne(codigoCerveja);
 		tabelaItens.adicionarItem(uuid, cerveja, 1);
 		return mvTabelaItensVenda(uuid);
 	}
@@ -144,7 +143,7 @@ public class VendasController {
 		mv.addObject("todosStatus", StatusVenda.values());
 		mv.addObject("tiposPessoa", TipoPessoa.values());
 		
-		PageWrapper<Venda> paginaWrapper = new PageWrapper<>(vendas.filtrar(vendaFilter, pageable)
+		PageWrapper<Venda> paginaWrapper = new PageWrapper<>(vendasRepo.filtrar(vendaFilter, pageable)
 				, httpServletRequest);
 		mv.addObject("pagina", paginaWrapper);
 		return mv;
@@ -152,7 +151,7 @@ public class VendasController {
 	
 	@GetMapping("/{codigo}")
 	public ModelAndView editar(@PathVariable Long codigo){
-		Venda venda = vendas.buscarComItens(codigo);
+		Venda venda = vendasRepo.buscarComItens(codigo);
 		
 		setUuid(venda);
 		for (ItemVenda item : venda.getItens()) {
@@ -169,8 +168,7 @@ public class VendasController {
 		try {
 			cadastroVendaService.cancelar(venda);
 		} catch (AccessDeniedException e) {
-			return new ModelAndView("error")
-					.addObject("status", 403);
+			return new ModelAndView("/403");
 		}
 		
 		attributes.addFlashAttribute("mensgaem", "Venda cancelada com sucesso");
@@ -179,12 +177,12 @@ public class VendasController {
 	
 	@GetMapping("/totalPorMes")
 	public @ResponseBody List<VendaMes> listarTotalTotalVendaPorMes(){
-		return vendas.totalPorMes();
+		return vendasRepo.totalPorMes();
 	}
 	
 	@GetMapping("/porOrigem")
 	public @ResponseBody List<VendaOrigem> vendasPorNacionalidade() {
-		return this.vendas.totalPorOrigem();
+		return this.vendasRepo.totalPorOrigem();
 	}
 	
 	private void setUuid(Venda venda) {

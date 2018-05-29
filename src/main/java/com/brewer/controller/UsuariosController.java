@@ -25,20 +25,22 @@ import javax.validation.Valid;
 @Controller
 @RequestMapping("/usuarios")
 public class UsuariosController {
-	
-	@Autowired
+
 	private CadastroUsuarioService cadastroUsuarioService;
+	private Grupos gruposRepo;
+	private Usuarios usuariosRepo;
 
 	@Autowired
-	private Grupos grupos;
-	
-	@Autowired
-	private Usuarios usuarios;
+	public UsuariosController(CadastroUsuarioService cadastroUsuarioService, Grupos gruposRepo, Usuarios usuariosRepo) {
+		this.cadastroUsuarioService = cadastroUsuarioService;
+		this.gruposRepo = gruposRepo;
+		this.usuariosRepo = usuariosRepo;
+	}
 	
 	@RequestMapping("/novo")
 	public ModelAndView novo(Usuario usuario) {
 		ModelAndView mv = new ModelAndView("usuario/CadastroUsuario");
-		mv.addObject("grupos", grupos.findAll());
+		mv.addObject("grupos", gruposRepo.findAll());
 		return mv;
 	}
 	
@@ -65,9 +67,9 @@ public class UsuariosController {
 	@GetMapping
 	public ModelAndView pesquisar(UsuarioFilter usuarioFilter, @PageableDefault(size = 3) Pageable pageable, HttpServletRequest httpServletRequest) {
 		ModelAndView mv = new ModelAndView("usuario/PesquisaUsuarios");
-		mv.addObject("grupos", grupos.findAll());
+		mv.addObject("grupos", gruposRepo.findAll());
 		
-		PageWrapper<Usuario> paginaWrapper = new PageWrapper<>(usuarios.filtrar(usuarioFilter, pageable), httpServletRequest);
+		PageWrapper<Usuario> paginaWrapper = new PageWrapper<>(usuariosRepo.filtrar(usuarioFilter, pageable), httpServletRequest);
 		mv.addObject("pagina", paginaWrapper);
 		
 		return mv;
@@ -81,7 +83,7 @@ public class UsuariosController {
 	
 	@GetMapping("/{codigo}")
 	public ModelAndView editar(@PathVariable Long codigo){
-		Usuario usuario = usuarios.buscarComGrupos(codigo);
+		Usuario usuario = usuariosRepo.buscarComGrupos(codigo);
 		ModelAndView mv = novo(usuario);
 		mv.addObject(usuario);
 		return mv;

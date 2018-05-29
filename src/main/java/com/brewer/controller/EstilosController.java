@@ -24,11 +24,14 @@ import javax.validation.Valid;
 @RequestMapping("/estilos")
 public class EstilosController {
 
-	@Autowired
 	private CadastroEstiloService cadastroEstiloService;
-	
+	private Estilos estilosRepo;
+
 	@Autowired
-	private Estilos estilos;
+	public EstilosController(CadastroEstiloService cadastroEstiloService, Estilos estilosRepo) {
+		this.cadastroEstiloService = cadastroEstiloService;
+		this.estilosRepo = estilosRepo;
+	}
 	
 	@RequestMapping("/novo")
 	public ModelAndView novo(Estilo estilo) {
@@ -63,10 +66,10 @@ public class EstilosController {
 	}
 	
 	@GetMapping
-	public ModelAndView pesquisar(EstiloFilter estiloFilter, BindingResult result, @PageableDefault(size = 2) Pageable pageable, HttpServletRequest httpServletRequest){
+	public ModelAndView pesquisar(EstiloFilter estiloFilter, @PageableDefault(size = 2) Pageable pageable, HttpServletRequest httpServletRequest){
 		ModelAndView mv = new ModelAndView("estilo/PesquisaEstilos");
 		
-		PageWrapper<Estilo> paginaWrapper = new PageWrapper<>(estilos.filtrar(estiloFilter, pageable), httpServletRequest);
+		PageWrapper<Estilo> paginaWrapper = new PageWrapper<>(estilosRepo.filtrar(estiloFilter, pageable), httpServletRequest);
 		mv.addObject("pagina", paginaWrapper);
 		return mv;
 	}
