@@ -3,12 +3,6 @@ package com.brewer.repository.helper.cliente;
 import com.brewer.model.Cliente;
 import com.brewer.repository.filter.ClienteFilter;
 import com.brewer.repository.paginacao.PaginacaoUtil;
-import org.hibernate.Criteria;
-import org.hibernate.Session;
-import org.hibernate.criterion.MatchMode;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
-import org.hibernate.sql.JoinType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -16,8 +10,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ClientesImpl implements ClientesQueries {
 
@@ -37,34 +34,36 @@ public class ClientesImpl implements ClientesQueries {
 	@SuppressWarnings("unchecked")
 	@Transactional(readOnly = true)
 	public Page<Cliente> filtrar(ClienteFilter filtro, Pageable pageable){
-		
-		Criteria criteria = manager.unwrap(Session.class).createCriteria(Cliente.class);
-		
-		paginacaoUtil.preparar(criteria, pageable);
-		
-		//filtros e consulta
-		adicionarfiltro(filtro, criteria);
-		
-		criteria.createAlias("endereco.cidade", "c", JoinType.LEFT_OUTER_JOIN);
-		criteria.createAlias("c.estado", "e", JoinType.LEFT_OUTER_JOIN);
-		
-		return new PageImpl<>(criteria.list(), pageable, total(filtro));
+		StringBuilder jpql = new StringBuilder("select c from Cliente c where 1=1");
+		Map<String, Object> params = new HashMap<>();
+		adicionarfiltro(filtro, jpql, params);
+		jpql.append(paginacaoUtil.ordenar(pageable, "c"));
+
+		TypedQuery<Cliente> query = manager.createQuery(jpql.toString(), Cliente.class);
+		params.forEach(query::setParameter);
+		paginacaoUtil.preparar(query, pageable);
+
+		return new PageImpl<>(query.getResultList(), pageable, total(filtro));
 	}
 	
 	private Long total(ClienteFilter filtro) {
-		Criteria criteria = manager.unwrap(Session.class).createCriteria(Cliente.class);
-		adicionarfiltro(filtro, criteria);
-		criteria.setProjection(Projections.rowCount());		
-		return (Long) criteria.uniqueResult();
+		StringBuilder jpql = new StringBuilder("select count(c) from Cliente c where 1=1");
+		Map<String, Object> params = new HashMap<>();
+		adicionarfiltro(filtro, jpql, params);
+		TypedQuery<Long> query = manager.createQuery(jpql.toString(), Long.class);
+		params.forEach(query::setParameter);
+		return query.getSingleResult();
 	}
 	
-	private void adicionarfiltro(ClienteFilter filtro, Criteria criteria) {
+	private void adicionarfiltro(ClienteFilter filtro, StringBuilder jpql, Map<String, Object> params) {
 		if(filtro != null){
-			if(!StringUtils.isEmpty(filtro.getNome())){
-                criteria.add(Restrictions.ilike("nome", filtro.getNome(), MatchMode.ANYWHERE));
+			if(StringUtils.hasText(filtro.getNome())){
+				jpql.append(" and lower(c.nome) like :nome");
+				params.put("nome", "%" + filtro.getNome().toLowerCase() + "%");
 			}
-			if(!StringUtils.isEmpty(filtro.getCpfOuCnpj())){
-				criteria.add(Restrictions.eq("cpfOuCnpj", filtro.getCpfOuCnpj()));
+			if(StringUtils.hasText(filtro.getCpfOuCnpj())){
+				jpql.append(" and c.cpfOuCnpj = :cpfOuCnpj");
+				params.put("cpfOuCnpj", filtro.getCpfOuCnpj());
 			}
 		}
 	}

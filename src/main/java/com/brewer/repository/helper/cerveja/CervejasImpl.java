@@ -7,11 +7,6 @@ import com.brewer.model.Cerveja;
 import com.brewer.repository.filter.CervejaFilter;
 import com.brewer.repository.paginacao.PaginacaoUtil;
 import com.brewer.storage.FotoStorage;
-import org.hibernate.Criteria;
-import org.hibernate.Session;
-import org.hibernate.criterion.MatchMode;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -19,9 +14,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 public class CervejasImpl implements CervejasQueries{
 
@@ -43,52 +41,62 @@ public class CervejasImpl implements CervejasQueries{
 	@SuppressWarnings("unchecked")
 	@Transactional(readOnly = true)
 	public Page<Cerveja> filtrar(CervejaFilter filtro, Pageable pageable){
-		
-		Criteria criteria = manager.unwrap(Session.class).createCriteria(Cerveja.class);
-		
-		paginacaoUtil.preparar(criteria, pageable);
-		
-		//filtros e consulta
-		adicionarFiltro(filtro, criteria);
-		List<Cerveja> list = criteria.list();
+		StringBuilder jpql = new StringBuilder("select c from Cerveja c where 1=1");
+		Map<String, Object> params = new HashMap<>();
+		adicionarFiltro(filtro, jpql, params);
+		jpql.append(paginacaoUtil.ordenar(pageable, "c"));
+
+		TypedQuery<Cerveja> query = manager.createQuery(jpql.toString(), Cerveja.class);
+		params.forEach(query::setParameter);
+		paginacaoUtil.preparar(query, pageable);
+		List<Cerveja> list = query.getResultList();
 		return new PageImpl<>(list, pageable, total(filtro));
 	}
 
 	private Long total(CervejaFilter filtro) {
-		Criteria criteria = manager.unwrap(Session.class).createCriteria(Cerveja.class);
-		adicionarFiltro(filtro, criteria);
-		criteria.setProjection(Projections.rowCount());		
-		return (Long) criteria.uniqueResult();
+		StringBuilder jpql = new StringBuilder("select count(c) from Cerveja c where 1=1");
+		Map<String, Object> params = new HashMap<>();
+		adicionarFiltro(filtro, jpql, params);
+		TypedQuery<Long> query = manager.createQuery(jpql.toString(), Long.class);
+		params.forEach(query::setParameter);
+		return query.getSingleResult();
 	}
 
-	private void adicionarFiltro(CervejaFilter filtro, Criteria criteria) {
+	private void adicionarFiltro(CervejaFilter filtro, StringBuilder jpql, Map<String, Object> params) {
 		if(filtro != null){
-			if(!StringUtils.isEmpty(filtro.getSku())){
-				criteria.add(Restrictions.eq("sku", filtro.getSku()));
+			if(StringUtils.hasText(filtro.getSku())){
+				jpql.append(" and c.sku = :sku");
+				params.put("sku", filtro.getSku());
 			}
 			
-			if(!StringUtils.isEmpty(filtro.getNome())){
-				criteria.add(Restrictions.ilike("nome", filtro.getNome(), MatchMode.ANYWHERE));
+			if(StringUtils.hasText(filtro.getNome())){
+				jpql.append(" and lower(c.nome) like :nome");
+				params.put("nome", "%" + filtro.getNome().toLowerCase() + "%");
 			}
 			
 			if(isEstiloPresente(filtro)){
-				criteria.add(Restrictions.eq("estilo", filtro.getEstilo()));
+				jpql.append(" and c.estilo = :estilo");
+				params.put("estilo", filtro.getEstilo());
 			}
 			
 			if(filtro.getSabor() != null){
-				criteria.add(Restrictions.eq("sabor", filtro.getSabor()));
+				jpql.append(" and c.sabor = :sabor");
+				params.put("sabor", filtro.getSabor());
 			}
 			
 			if(filtro.getOrigem() != null){
-				criteria.add(Restrictions.eq("origem", filtro.getOrigem()));
+				jpql.append(" and c.origem = :origem");
+				params.put("origem", filtro.getOrigem());
 			}
 			
 			if(filtro.getValorDe() != null){
-				criteria.add(Restrictions.ge("valor", filtro.getValorDe()));
+				jpql.append(" and c.valor >= :valorDe");
+				params.put("valorDe", filtro.getValorDe());
 			}
 			
 			if(filtro.getValorAte() != null){
-				criteria.add(Restrictions.le("valor", filtro.getValorAte()));
+				jpql.append(" and c.valor <= :valorAte");
+				params.put("valorAte", filtro.getValorAte());
 			}
 		}
 	}
@@ -99,9 +107,8 @@ public class CervejasImpl implements CervejasQueries{
 
 	@Override
 	public List<CervejaDTO> porSkuOuNome(String skuOuNome) {
-		
-		String jpql = "select new com.brewer.dto.CervejaDTO(codigo, sku, nome, origem, valor, foto) "
-				+ "from Cerveja where lower(sku) like :skuOuNome or lower(nome) like :skuOuNome";
+		String jpql = "select new com.brewer.dto.CervejaDTO(c.codigo, c.sku, c.nome, c.origem, c.valor, c.foto) "
+				+ "from Cerveja c where lower(c.sku) like :skuOuNome or lower(c.nome) like :skuOuNome";
         List<CervejaDTO> cervejasFiltradas = manager.createQuery(jpql, CervejaDTO.class)
 				.setParameter("skuOuNome", skuOuNome.toLowerCase() + "%")
 				.getResultList();
@@ -112,7 +119,7 @@ public class CervejasImpl implements CervejasQueries{
 	
 	@Override
 	public ValorItensEstoque valorItensEstoque() {
-		String query = "select new com.brewer.dto.ValorItensEstoque(sum(valor * quantidadeEstoque), sum(quantidadeEstoque)) from Cerveja";
+		String query = "select new com.brewer.dto.ValorItensEstoque(coalesce(sum(c.valor * c.quantidadeEstoque), 0), coalesce(sum(c.quantidadeEstoque), 0)) from Cerveja c";
 		return manager.createQuery(query, ValorItensEstoque.class).getSingleResult();
 	}
 }

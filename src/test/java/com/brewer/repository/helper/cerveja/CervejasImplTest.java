@@ -16,7 +16,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import javax.persistence.EntityManager;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -37,6 +37,7 @@ public class CervejasImplTest {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
+        org.mockito.Mockito.when(mockPaginacao.ordenar(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString())).thenReturn("");
         EntityManager entityManager = JPAHibernateTest.getEntityManager();
 
         cerveja1 = CervejaBuilder.criarCerveja();

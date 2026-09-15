@@ -13,7 +13,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import javax.persistence.EntityManager;
+import jakarta.persistence.EntityManager;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -30,6 +30,7 @@ public class CidadesImplTest {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
+        org.mockito.Mockito.when(mockPaginacao.ordenar(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString())).thenReturn("");
         EntityManager entityManager = JPAHibernateTest.getEntityManager();
 
         entityManager.getTransaction().begin();

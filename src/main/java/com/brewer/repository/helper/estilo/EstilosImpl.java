@@ -3,11 +3,6 @@ package com.brewer.repository.helper.estilo;
 import com.brewer.model.Estilo;
 import com.brewer.repository.filter.EstiloFilter;
 import com.brewer.repository.paginacao.PaginacaoUtil;
-import org.hibernate.Criteria;
-import org.hibernate.Session;
-import org.hibernate.criterion.MatchMode;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -15,8 +10,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
+import java.util.HashMap;
+import java.util.Map;
 
 public class EstilosImpl implements EstilosQueries {
 
@@ -36,26 +34,30 @@ public class EstilosImpl implements EstilosQueries {
 	@SuppressWarnings("unchecked")
 	@Transactional(readOnly = true)
 	public Page<Estilo> filtrar(EstiloFilter filtro, Pageable pageable){
-		
-		Criteria criteria = manager.unwrap(Session.class).createCriteria(Estilo.class);
-		
-		paginacaoUtil.preparar(criteria, pageable);
-		
-		//filtros e consulta
-		adicionarfiltro(filtro, criteria);		
-		return new PageImpl<>(criteria.list(), pageable, total(filtro));
+		StringBuilder jpql = new StringBuilder("select e from Estilo e where 1=1");
+		Map<String, Object> params = new HashMap<>();
+		adicionarfiltro(filtro, jpql, params);
+		jpql.append(paginacaoUtil.ordenar(pageable, "e"));
+
+		TypedQuery<Estilo> query = manager.createQuery(jpql.toString(), Estilo.class);
+		params.forEach(query::setParameter);
+		paginacaoUtil.preparar(query, pageable);
+		return new PageImpl<>(query.getResultList(), pageable, total(filtro));
 	}
 	
 	private Long total(EstiloFilter filtro) {
-		Criteria criteria = manager.unwrap(Session.class).createCriteria(Estilo.class);
-		adicionarfiltro(filtro, criteria);
-		criteria.setProjection(Projections.rowCount());		
-		return (Long) criteria.uniqueResult();
+		StringBuilder jpql = new StringBuilder("select count(e) from Estilo e where 1=1");
+		Map<String, Object> params = new HashMap<>();
+		adicionarfiltro(filtro, jpql, params);
+		TypedQuery<Long> query = manager.createQuery(jpql.toString(), Long.class);
+		params.forEach(query::setParameter);
+		return query.getSingleResult();
 	}
 	
-	private void adicionarfiltro(EstiloFilter filtro, Criteria criteria) {
-		if(filtro != null && !StringUtils.isEmpty(filtro.getNome())){
-            criteria.add(Restrictions.ilike("nome", filtro.getNome(), MatchMode.ANYWHERE));
+	private void adicionarfiltro(EstiloFilter filtro, StringBuilder jpql, Map<String, Object> params) {
+		if(filtro != null && StringUtils.hasText(filtro.getNome())){
+			jpql.append(" and lower(e.nome) like :nome");
+			params.put("nome", "%" + filtro.getNome().toLowerCase() + "%");
 		}
 	}
 

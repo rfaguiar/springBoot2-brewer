@@ -10,17 +10,11 @@ import com.brewer.storage.exception.FotoStorageException;
 import net.coobird.thumbnailator.Thumbnails;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
+import org.mockito.MockedStatic;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,10 +24,6 @@ import java.io.OutputStream;
 
 import static org.junit.Assert.*;
 
-@PowerMockIgnore("javax.management.*")
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({Thumbnails.class, Thumbnails.Builder.class, AmazonS3.class, Logger.class, LoggerFactory.class,
-        S3Object.class, S3ObjectInputStream.class, IOUtils.class, DeleteObjectsResult.class, System.class})
 public class FotoStorageS3Test {
 
     private FotoStorageS3 storage;
@@ -48,29 +38,34 @@ public class FotoStorageS3Test {
     private S3ObjectInputStream s3ObjStream;
     @Mock
     private DeleteObjectsResult mockDeleteObj;
-
-    @Mock
-    private Logger mockLogger;
+    private MockedStatic<Thumbnails> mockThumbnails;
+    private MockedStatic<IOUtils> mockIoUtils;
 
     @Before
     public void metodoIniciandoCenariosDeTeste() {
         MockitoAnnotations.initMocks(this);
-        PowerMockito.mockStatic(Thumbnails.class);
-        PowerMockito.mockStatic(Logger.class);
-        PowerMockito.mockStatic(LoggerFactory.class);
-        PowerMockito.mockStatic(IOUtils.class);
-        PowerMockito.mockStatic(System.class);
-        Mockito.when(LoggerFactory.getLogger(FotoStorageS3.class)).thenReturn(mockLogger);
+        mockThumbnails = Mockito.mockStatic(Thumbnails.class);
+        mockIoUtils = Mockito.mockStatic(IOUtils.class);
         this.storage = new FotoStorageS3("bucketTeste", mockAmazonS3);
 
+    }
+
+    @org.junit.After
+    public void finalizarCenariosDeTeste() {
+        if (mockThumbnails != null) {
+            mockThumbnails.close();
+        }
+        if (mockIoUtils != null) {
+            mockIoUtils.close();
+        }
     }
 
     @Test
     public void testeMetodoSalvarDeveSalvarCorretamenteAFotoNaAmazonS3() throws IOException {
         MultipartFile[] multPart = {new MockMultipartFile("teste", new byte[]{'t', 'e', 's', 't', 'e'})};
-        Mockito.when(Thumbnails.of(Matchers.any(InputStream.class))).thenReturn(mockThumbBuild);
-        Mockito.when(mockThumbBuild.size(Matchers.anyInt(), Matchers.anyInt())).thenReturn(mockThumbBuild);
-        Mockito.doNothing().when(mockThumbBuild).toOutputStream(Matchers.any(OutputStream.class));
+        mockThumbnails.when(() -> Thumbnails.of(ArgumentMatchers.any(InputStream.class))).thenReturn(mockThumbBuild);
+        Mockito.when(mockThumbBuild.size(ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt())).thenReturn(mockThumbBuild);
+        Mockito.doNothing().when(mockThumbBuild).toOutputStream(ArgumentMatchers.any(OutputStream.class));
         String result = storage.salvar(multPart);
         assertNotNull(result);
     }
@@ -79,9 +74,9 @@ public class FotoStorageS3Test {
     public void testeMetodoSalvarQuandoOcorreExcecaoDeveLancarMsgAdequada() throws IOException {
         try {
             MultipartFile[] multPart = {new MockMultipartFile("teste", new byte[]{'t', 'e', 's', 't', 'e'})};
-            Mockito.when(Thumbnails.of(Matchers.any(InputStream.class))).thenReturn(mockThumbBuild);
-            Mockito.when(mockThumbBuild.size(Matchers.anyInt(), Matchers.anyInt())).thenReturn(mockThumbBuild);
-            Mockito.doThrow(new IOException()).when(mockThumbBuild).toOutputStream(Matchers.any(OutputStream.class));
+            mockThumbnails.when(() -> Thumbnails.of(ArgumentMatchers.any(InputStream.class))).thenReturn(mockThumbBuild);
+            Mockito.when(mockThumbBuild.size(ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt())).thenReturn(mockThumbBuild);
+            Mockito.doThrow(new IOException()).when(mockThumbBuild).toOutputStream(ArgumentMatchers.any(OutputStream.class));
             storage.salvar(multPart);
         } catch (IOException e) {
             assertEquals("Erro salvando arquivo no S3", e.getMessage());
@@ -93,9 +88,9 @@ public class FotoStorageS3Test {
     @Test
     public void testeMetodoRecuperarAFotoArmazenadaNaAmazonS3() throws IOException {
 
-        Mockito.when(mockAmazonS3.getObject(Matchers.anyString(), Matchers.anyString())).thenReturn(mock3Object);
+        Mockito.when(mockAmazonS3.getObject(ArgumentMatchers.anyString(), ArgumentMatchers.anyString())).thenReturn(mock3Object);
         Mockito.when(mock3Object.getObjectContent()).thenReturn(s3ObjStream);
-        Mockito.when(IOUtils.toByteArray(s3ObjStream)).thenReturn(new byte[]{'t', 'e', 's', 't', 'e'});
+        mockIoUtils.when(() -> IOUtils.toByteArray(s3ObjStream)).thenReturn(new byte[]{'t', 'e', 's', 't', 'e'});
         byte[] result = storage.recuperar("teste");
         assertNotNull(result);
 
@@ -104,11 +99,11 @@ public class FotoStorageS3Test {
     @Test(expected = FotoStorageException.class)
     public void testeMetodoRecuperarQuandoOcorrerErroDeveLancarExcecaoComMensagenAdequada() throws IOException {
         try {
-            Mockito.when(mockAmazonS3.getObject(Matchers.anyString(), Matchers.anyString())).thenReturn(mock3Object);
+            Mockito.when(mockAmazonS3.getObject(ArgumentMatchers.anyString(), ArgumentMatchers.anyString())).thenReturn(mock3Object);
             Mockito.when(mock3Object.getObjectContent()).thenReturn(s3ObjStream);
-            Mockito.when(IOUtils.toByteArray(s3ObjStream)).thenThrow(new IOException());
+            mockIoUtils.when(() -> IOUtils.toByteArray(s3ObjStream)).thenThrow(new IOException());
             storage.recuperar("teste");
-        }catch (IOException e) {
+        }catch (FotoStorageException e) {
             assertEquals("Não conseguiu recuperar foto do S3", e.getMessage());
             throw e;
         }
@@ -119,18 +114,18 @@ public class FotoStorageS3Test {
     @Test
     public void testeMetodoRecuperarThumbnailDeveRetornarAFotoPequena() throws IOException {
 
-        Mockito.when(mockAmazonS3.getObject(Matchers.anyString(), Matchers.anyString())).thenReturn(mock3Object);
+        Mockito.when(mockAmazonS3.getObject(ArgumentMatchers.anyString(), ArgumentMatchers.anyString())).thenReturn(mock3Object);
         Mockito.when(mock3Object.getObjectContent()).thenReturn(s3ObjStream);
-        Mockito.when(IOUtils.toByteArray(s3ObjStream)).thenReturn(new byte[]{'t', 'e', 's', 't', 'e'});
+        mockIoUtils.when(() -> IOUtils.toByteArray(s3ObjStream)).thenReturn(new byte[]{'t', 'e', 's', 't', 'e'});
         byte[] result = storage.recuperarThumbnail("teste");
         assertNotNull(result);
     }
 
     @Test
     public void testeMetodoExcluirDeveDeletarArquivoNaAmazon() {
-        Mockito.when(mockAmazonS3.deleteObjects(Matchers.any(DeleteObjectsRequest.class))).thenReturn(mockDeleteObj);
+        Mockito.when(mockAmazonS3.deleteObjects(ArgumentMatchers.any(DeleteObjectsRequest.class))).thenReturn(mockDeleteObj);
         storage.excluir("teste");
-        Mockito.verify(mockAmazonS3).deleteObjects(Matchers.any(DeleteObjectsRequest.class));
+        Mockito.verify(mockAmazonS3).deleteObjects(ArgumentMatchers.any(DeleteObjectsRequest.class));
     }
 
     @Test

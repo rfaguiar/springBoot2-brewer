@@ -3,18 +3,13 @@ package com.brewer.controller;
 import com.brewer.Constantes;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.User;
 
 import static org.junit.Assert.assertEquals;
 
-@PowerMockIgnore("javax.management.*")
-@RunWith(PowerMockRunner.class)
 public class SegurancaControllerTest {
 
     private SegurancaController controller;

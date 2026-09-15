@@ -4,8 +4,8 @@ import com.brewer.repository.listener.CervejaEntityListener;
 import com.brewer.validation.SKU;
 import org.springframework.util.StringUtils;
 
-import javax.persistence.*;
-import javax.validation.constraints.*;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Objects;
