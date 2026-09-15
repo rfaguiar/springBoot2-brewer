@@ -26,11 +26,13 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <!-- https://github.com/coobird/thumbnailator -->
 <thumbnailator.version>0.4.8</thumbnailator.version>
 <!-- AWS SDK - S3 -->
-<aws-java-sdk-s3.version>1.11.253</aws-java-sdk-s3.version>
+<aws-java-sdk-s3.version>1.12.261</aws-java-sdk-s3.version>
 <!-- JasperReports -->
-		<jasperreports.version>6.21.3</jasperreports.version>
-		<jasperreports-fonts.version>6.21.3</jasperreports-fonts.version>
+		<jasperreports.version>7.0.7</jasperreports.version>
+		<jasperreports-fonts.version>7.0.7</jasperreports-fonts.version>
 		<mockito.version>5.14.2</mockito.version>
+		<!-- commons-beanutils was a transitive dependency of jasperreports 6.x; dropped in 7.x, now pinned explicitly (1.11.0 fixes CVE-2025-48734) -->
+		<commons-beanutils.version>1.11.0</commons-beanutils.version>
 </properties>
 <dependencies>
 <!-- Spring Boot 3 -->
@@ -180,6 +182,12 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <dependency>
 <groupId>org.apache.commons</groupId>
 <artifactId>commons-lang3</artifactId>
+</dependency>
+<!-- commons-beanutils - was a transitive dependency of jasperreports 6.x, dropped in jasperreports 7.x -->
+<dependency>
+<groupId>commons-beanutils</groupId>
+<artifactId>commons-beanutils</artifactId>
+<version>${commons-beanutils.version}</version>
 </dependency>
 <dependency>
 <groupId>org.springframework</groupId>
