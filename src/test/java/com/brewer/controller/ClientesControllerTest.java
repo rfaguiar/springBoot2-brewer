@@ -14,15 +14,9 @@ import com.brewer.service.CadastroClienteService;
 import com.brewer.service.exception.CpfCnpjClienteJaCadastradoException;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -33,14 +27,11 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 
 import static org.junit.Assert.*;
 
-@PowerMockIgnore("javax.management.*")
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({UriComponentsBuilder.class})
 public class ClientesControllerTest {
 
     private ClientesController controller;
@@ -60,13 +51,10 @@ public class ClientesControllerTest {
     private Pageable mockPageable;
     @Mock
     private ClienteFilter mockClienteFilter;
-    @Mock
-    private UriComponentsBuilder uriBuilder;
 
     @Before
     public void iniciarCenarioDeTeste() {
         MockitoAnnotations.initMocks(this);
-        PowerMockito.mockStatic(UriComponentsBuilder.class);
         this.controller = new ClientesController(mockEstadosRepo, mockClienteService, mockClientesRepo);
     }
 
@@ -113,7 +101,7 @@ public class ClientesControllerTest {
         List<Estado> listaEstadosResult = (List<Estado>) result.getModel().get(Constantes.ESTADOS);
 
         Mockito.verify(mockBindingResult).rejectValue(Constantes.CPF_OU_CNPJ, "CPF/CNPJ já cadastrado", "CPF/CNPJ já cadastrado");
-        Mockito.verifyZeroInteractions(mockRedirectAttributes);
+        Mockito.verifyNoInteractions(mockRedirectAttributes);
         assertEquals(Constantes.CADASTRO_CLIENTE_VIEW, result.getViewName());
         assertArrayEquals(tipoPessoas, tipoPessoasResult);
         assertEquals(listaEstados, listaEstadosResult);
@@ -132,8 +120,8 @@ public class ClientesControllerTest {
         TipoPessoa[] tipoPessoasResult = (TipoPessoa[]) result.getModel().get(Constantes.TIPOS_PESSOA);
         List<Estado> listaEstadosResult = (List<Estado>) result.getModel().get(Constantes.ESTADOS);
 
-        Mockito.verifyZeroInteractions(mockRedirectAttributes);
-        Mockito.verifyZeroInteractions(mockClienteService);
+        Mockito.verifyNoInteractions(mockRedirectAttributes);
+        Mockito.verifyNoInteractions(mockClienteService);
         assertEquals(Constantes.CADASTRO_CLIENTE_VIEW, result.getViewName());
         assertArrayEquals(tipoPessoas, tipoPessoasResult);
         assertEquals(listaEstados, listaEstadosResult);
@@ -146,8 +134,6 @@ public class ClientesControllerTest {
         Mockito.when(mockClientesRepo.filtrar(mockClienteFilter, mockPageable)).thenReturn(clientePage);
         Mockito.when(mockHttpRequest.getRequestURL()).thenReturn(new StringBuffer("url"));
         Mockito.when(mockHttpRequest.getQueryString()).thenReturn("?");
-        Mockito.when(UriComponentsBuilder.fromHttpUrl(ArgumentMatchers.anyString())).thenReturn(uriBuilder);
-
         ModelAndView result = controller.pesquisar(mockClienteFilter, mockBindingResult, mockPageable, mockHttpRequest);
 
         PageWrapper<Cliente> paginaWrapperResult = (PageWrapper<Cliente>) result.getModel().get(Constantes.PAGINADOR_VIEW);
@@ -170,7 +156,7 @@ public class ClientesControllerTest {
     public void testeMetodoPesquisarPorNomeQuandoArgumentoMenorQue3CaracteresDeveRetornarExcecao() {
         try {
             controller.pesquisar("te");
-            Mockito.verifyZeroInteractions(mockClientesRepo);
+            Mockito.verifyNoInteractions(mockClientesRepo);
         }catch (IllegalArgumentException e) {
             throw e;
         }

@@ -40,7 +40,7 @@ public class CadastroVendaServiceTest {
         try {
             venda.setStatus(StatusVenda.CANCELADA);
             service.salvar(venda);
-            Mockito.verifyZeroInteractions(mockVendasRepo);
+            Mockito.verifyNoInteractions(mockVendasRepo);
         } catch (Exception e) {
             assertEquals("Usúario tentando salvar uma venda proibida", e.getMessage());
             throw e;

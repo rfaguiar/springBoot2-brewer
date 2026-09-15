@@ -12,7 +12,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import javax.persistence.EntityManager;
+import jakarta.persistence.EntityManager;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -28,6 +28,7 @@ public class EstilosImplTest {
     @Before
     public void init() {
         MockitoAnnotations.initMocks(this);
+        org.mockito.Mockito.when(mockPaginacaoUtil.ordenar(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString())).thenReturn("");
         EntityManager entityManager = JPAHibernateTest.getEntityManager();
 
         Estilo e1 = new Estilo();

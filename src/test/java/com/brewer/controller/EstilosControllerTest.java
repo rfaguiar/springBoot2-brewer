@@ -10,15 +10,9 @@ import com.brewer.service.CadastroEstiloService;
 import com.brewer.service.exception.NomeEstiloJaCadastradoException;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -30,14 +24,11 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-@PowerMockIgnore("javax.management.*")
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({UriComponentsBuilder.class})
 public class EstilosControllerTest {
 
     private EstilosController controller;
@@ -57,13 +48,10 @@ public class EstilosControllerTest {
     private Pageable mockPageable;
     @Mock
     private EstiloFilter mockEstiloFilter;
-    @Mock
-    private UriComponentsBuilder uriBuilder;
 
     @Before
     public void iniciarCenarioDeTeste() {
         MockitoAnnotations.initMocks(this);
-        PowerMockito.mockStatic(UriComponentsBuilder.class);
         this.controller = new EstilosController(mockEstiloService, mockEstilosRepo);
     }
 
@@ -97,7 +85,7 @@ public class EstilosControllerTest {
         ModelAndView result = controller.cadastrar(estilo, mockBindingResult, mockRedirectAttributes);
 
         Mockito.verify(mockBindingResult).rejectValue(Constantes.NOME, "Nome do estilo já cadastrado", "Nome do estilo já cadastrado");
-        Mockito.verifyZeroInteractions(mockRedirectAttributes);
+        Mockito.verifyNoInteractions(mockRedirectAttributes);
         assertEquals(Constantes.CADASTRO_ESTILO_VIEW, result.getViewName());
     }
 
@@ -108,8 +96,8 @@ public class EstilosControllerTest {
 
         ModelAndView result = controller.cadastrar(estilo, mockBindingResult, mockRedirectAttributes);
 
-        Mockito.verifyZeroInteractions(mockRedirectAttributes);
-        Mockito.verifyZeroInteractions(mockEstiloService);
+        Mockito.verifyNoInteractions(mockRedirectAttributes);
+        Mockito.verifyNoInteractions(mockEstiloService);
         assertEquals(Constantes.CADASTRO_ESTILO_VIEW, result.getViewName());
     }
 
@@ -122,7 +110,7 @@ public class EstilosControllerTest {
 
         ResponseEntity result = controller.salvar(estilo, mockBindingResult);
 
-        Mockito.verifyZeroInteractions(mockEstiloService);
+        Mockito.verifyNoInteractions(mockEstiloService);
         assertEquals(HttpStatus.BAD_REQUEST, result.getStatusCode());
         assertEquals("Erro nome", result.getBody());
     }
@@ -145,7 +133,6 @@ public class EstilosControllerTest {
         Mockito.when(mockEstilosRepo.filtrar(mockEstiloFilter, mockPageable)).thenReturn(clientePage);
         Mockito.when(mockHttpRequest.getRequestURL()).thenReturn(new StringBuffer("url"));
         Mockito.when(mockHttpRequest.getQueryString()).thenReturn("?");
-        Mockito.when(UriComponentsBuilder.fromHttpUrl(ArgumentMatchers.anyString())).thenReturn(uriBuilder);
 
         ModelAndView result = controller.pesquisar(mockEstiloFilter, mockPageable, mockHttpRequest);
 

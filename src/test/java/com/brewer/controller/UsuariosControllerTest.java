@@ -14,15 +14,9 @@ import com.brewer.service.exception.EmailUsuarioJaCadastradoException;
 import com.brewer.service.exception.SenhaObrigatoriaUsuarioException;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.validation.BindingResult;
@@ -30,15 +24,12 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-@PowerMockIgnore("javax.management.*")
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({UriComponentsBuilder.class})
 public class UsuariosControllerTest {
 
     private UsuariosController controller;
@@ -59,13 +50,10 @@ public class UsuariosControllerTest {
     private Pageable mockPageable;
     @Mock
     private UsuarioFilter mockUsuarioFilter;
-    @Mock
-    private UriComponentsBuilder uriBuilder;
 
     @Before
     public void iniciarCenarioDeTeste() {
         MockitoAnnotations.initMocks(this);
-        PowerMockito.mockStatic(UriComponentsBuilder.class);
         this.controller = new UsuariosController(mockUsuarioService, mockGruposRepo, mockUsuariosRepo);
     }
 
@@ -108,8 +96,8 @@ public class UsuariosControllerTest {
 
         List<Grupo> listaGruposResult = (List<Grupo>) result.getModel().get(Constantes.GRUPOS);
 
-        Mockito.verifyZeroInteractions(mockRedirectAttributtes);
-        Mockito.verifyZeroInteractions(mockUsuarioService);
+        Mockito.verifyNoInteractions(mockRedirectAttributtes);
+        Mockito.verifyNoInteractions(mockUsuarioService);
         assertEquals(Constantes.CADASTRO_USUARIO_VIEW, result.getViewName());
         assertEquals(listaGrupos, listaGruposResult);
     }
@@ -127,7 +115,7 @@ public class UsuariosControllerTest {
         List<Grupo> listaGruposResult = (List<Grupo>) result.getModel().get(Constantes.GRUPOS);
 
         Mockito.verify(mockBindingResult).rejectValue(Constantes.EMAIL, "E-mail já cadastrado", "E-mail já cadastrado");
-        Mockito.verifyZeroInteractions(mockRedirectAttributtes);
+        Mockito.verifyNoInteractions(mockRedirectAttributtes);
         assertEquals(Constantes.CADASTRO_USUARIO_VIEW, result.getViewName());
         assertEquals(listaGrupos, listaGruposResult);
     }
@@ -148,7 +136,7 @@ public class UsuariosControllerTest {
 
         Mockito.verify(mockBindingResult).rejectValue(Constantes.SENHA, "Senha é obrigatória para novo usuário",
                 "Senha é obrigatória para novo usuário");
-        Mockito.verifyZeroInteractions(mockRedirectAttributtes);
+        Mockito.verifyNoInteractions(mockRedirectAttributtes);
         assertEquals(Constantes.CADASTRO_USUARIO_VIEW, result.getViewName());
         assertEquals(listaGrupos, listaGruposResult);
     }
@@ -161,7 +149,6 @@ public class UsuariosControllerTest {
         Mockito.when(mockUsuariosRepo.filtrar(mockUsuarioFilter, mockPageable)).thenReturn(usuariosPage);
         Mockito.when(mockHttpRequest.getRequestURL()).thenReturn(new StringBuffer("url"));
         Mockito.when(mockHttpRequest.getQueryString()).thenReturn("?");
-        Mockito.when(UriComponentsBuilder.fromHttpUrl(ArgumentMatchers.anyString())).thenReturn(uriBuilder);
         Mockito.when(mockGruposRepo.findAll()).thenReturn(listaGrupos);
 
         ModelAndView result = controller.pesquisar(mockUsuarioFilter, mockPageable, mockHttpRequest);

@@ -1,0 +1,19 @@
+.git
+.gitignore
+.idea
+.github
+.vscode
+
+# Build output and caches
+target
+**/target
+
+# Local or CI artifacts
+*.log
+*.tmp
+*.swp
+
+# Docs and metadata not needed in image
+Readme.md
+Procfile
+

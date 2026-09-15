@@ -3,11 +3,6 @@ package com.brewer.repository.helper.cidade;
 import com.brewer.model.Cidade;
 import com.brewer.repository.filter.CidadeFilter;
 import com.brewer.repository.paginacao.PaginacaoUtil;
-import org.hibernate.Criteria;
-import org.hibernate.Session;
-import org.hibernate.criterion.MatchMode;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -15,8 +10,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
+import java.util.HashMap;
+import java.util.Map;
 
 public class CidadesImpl implements CidadesQueries {
 
@@ -37,30 +35,37 @@ public class CidadesImpl implements CidadesQueries {
 	@Override
 	@Transactional(readOnly = true)
 	public Page<Cidade> filtrar(CidadeFilter filtro, Pageable pageable) {
-		Criteria criteria = manager.unwrap(Session.class).createCriteria(Cidade.class);
-		
-		paginacaoUtil.preparar(criteria, pageable);
-		adicionarFiltro(filtro, criteria);
-		criteria.createAlias("estado", "e");
-				
-		return new PageImpl<>(criteria.list(), pageable, total(filtro));
+		StringBuilder jpql = new StringBuilder("select c from Cidade c where 1=1");
+		Map<String, Object> params = new HashMap<>();
+		adicionarFiltro(filtro, jpql, params);
+		jpql.append(paginacaoUtil.ordenar(pageable, "c"));
+
+		TypedQuery<Cidade> query = manager.createQuery(jpql.toString(), Cidade.class);
+		params.forEach(query::setParameter);
+		paginacaoUtil.preparar(query, pageable);
+
+		return new PageImpl<>(query.getResultList(), pageable, total(filtro));
 	}
 	
 	private Long total(CidadeFilter filtro) {
-		Criteria criteria = manager.unwrap(Session.class).createCriteria(Cidade.class);
-		adicionarFiltro(filtro, criteria);
-		criteria.setProjection(Projections.rowCount());
-		return (Long) criteria.uniqueResult();
+		StringBuilder jpql = new StringBuilder("select count(c) from Cidade c where 1=1");
+		Map<String, Object> params = new HashMap<>();
+		adicionarFiltro(filtro, jpql, params);
+		TypedQuery<Long> query = manager.createQuery(jpql.toString(), Long.class);
+		params.forEach(query::setParameter);
+		return query.getSingleResult();
 	}
 
-	private void adicionarFiltro(CidadeFilter filtro, Criteria criteria) {
+	private void adicionarFiltro(CidadeFilter filtro, StringBuilder jpql, Map<String, Object> params) {
 		if (filtro != null) {
 			if (filtro.getEstado() != null) {
-				criteria.add(Restrictions.eq("estado", filtro.getEstado()));
+				jpql.append(" and c.estado = :estado");
+				params.put("estado", filtro.getEstado());
 			}
 			
-			if (!StringUtils.isEmpty(filtro.getNome())) {
-				criteria.add(Restrictions.ilike("nome", filtro.getNome(), MatchMode.ANYWHERE));
+			if (StringUtils.hasText(filtro.getNome())) {
+				jpql.append(" and lower(c.nome) like :nome");
+				params.put("nome", "%" + filtro.getNome().toLowerCase() + "%");
 			}
 		}
 	}

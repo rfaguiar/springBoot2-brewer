@@ -7,17 +7,11 @@ import net.coobird.thumbnailator.name.Rename;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
+import org.mockito.MockedStatic;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,34 +24,29 @@ import java.nio.file.Paths;
 
 import static org.junit.Assert.*;
 
-@PowerMockIgnore("javax.management.*")
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({Thumbnails.class, Thumbnails.Builder.class, Logger.class, LoggerFactory.class, System.class,
-        Files.class, MultipartFile.class})
 public class FotoStorageLocalTest {
 
     private FotoStorageLocal storage;
-    @Mock
-    private Logger mockLogger;
     @Mock
     private Thumbnails.Builder mockThumbBuild;
     @Mock
     private MultipartFile mockMultipartFile;
     private Path path;
+    private MockedStatic<Thumbnails> mockThumbnails;
 
     @Before
     public void metodoIniciandoCenariosDeTeste() {
         MockitoAnnotations.initMocks(this);
-        PowerMockito.mockStatic(Logger.class);
-        PowerMockito.mockStatic(LoggerFactory.class);
-        PowerMockito.mockStatic(Thumbnails.class);
-        Mockito.when(LoggerFactory.getLogger(FotoStorageLocal.class)).thenReturn(mockLogger);
+        mockThumbnails = Mockito.mockStatic(Thumbnails.class);
         this.path = Paths.get("./target/unitTestFotoStorageLocal");
         this.storage = new FotoStorageLocal(path);
     }
 
     @After
     public void metodofinalizandoCenariodeTeste() {
+        if (mockThumbnails != null) {
+            mockThumbnails.close();
+        }
         deleteDir(path.toFile());
     }
 
@@ -77,9 +66,9 @@ public class FotoStorageLocalTest {
     @Test
     public void testeMetodoSalvarDeveSalvarArquivoLocal() throws IOException {
         MultipartFile[] multPart = {new MockMultipartFile("teste", new byte[]{'t', 'e', 's', 't', 'e'})};
-        Mockito.when(Thumbnails.of(Matchers.anyString())).thenReturn(mockThumbBuild);
-        Mockito.when(mockThumbBuild.size(Matchers.anyInt(), Matchers.anyInt())).thenReturn(mockThumbBuild);
-        Mockito.doNothing().when(mockThumbBuild).toOutputStream(Matchers.any(OutputStream.class));
+        mockThumbnails.when(() -> Thumbnails.of(ArgumentMatchers.anyString())).thenReturn(mockThumbBuild);
+        Mockito.when(mockThumbBuild.size(ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt())).thenReturn(mockThumbBuild);
+        Mockito.doNothing().when(mockThumbBuild).toOutputStream(ArgumentMatchers.any(OutputStream.class));
         String result = storage.salvar(multPart);
         assertNotNull(result);
     }
@@ -88,8 +77,8 @@ public class FotoStorageLocalTest {
     public void testeMetodoSalvarDeveLancarExcecaoComMsgAdequadaQuandoOcorrerErroNoThumbNail() throws IOException {
         try {
             MultipartFile[] multPart = {new MockMultipartFile("teste", new byte[]{'t', 'e', 's', 't', 'e'})};
-            Mockito.when(Thumbnails.of(Matchers.anyString())).thenReturn(mockThumbBuild);
-            Mockito.when(mockThumbBuild.size(Matchers.anyInt(), Matchers.anyInt())).thenReturn(mockThumbBuild);
+            mockThumbnails.when(() -> Thumbnails.of(ArgumentMatchers.anyString())).thenReturn(mockThumbBuild);
+            Mockito.when(mockThumbBuild.size(ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt())).thenReturn(mockThumbBuild);
             Mockito.doThrow(new IOException()).when(mockThumbBuild).toFiles(Rename.PREFIX_DOT_THUMBNAIL);
             storage.salvar(multPart);
         } catch (IOException e) {
@@ -103,10 +92,10 @@ public class FotoStorageLocalTest {
     public void testeMetodoSalvarDeveLancarExcecaoComMsgAdequadaQuandoOcorrerErroNoThumbNailNaoConseguiurSalvarNoDiretorioLocal() throws IOException {
         try {
             MultipartFile[] multPart = {mockMultipartFile};
-            Mockito.when(Thumbnails.of(Matchers.anyString())).thenReturn(mockThumbBuild);
-            Mockito.when(mockThumbBuild.size(Matchers.anyInt(), Matchers.anyInt())).thenReturn(mockThumbBuild);
+            mockThumbnails.when(() -> Thumbnails.of(ArgumentMatchers.anyString())).thenReturn(mockThumbBuild);
+            Mockito.when(mockThumbBuild.size(ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt())).thenReturn(mockThumbBuild);
             Mockito.doNothing().when(mockThumbBuild).toFiles(Rename.PREFIX_DOT_THUMBNAIL);
-            Mockito.doThrow(new IOException()).when(mockMultipartFile).transferTo(Matchers.any(File.class));
+            Mockito.doThrow(new IOException()).when(mockMultipartFile).transferTo(ArgumentMatchers.any(File.class));
             storage.salvar(multPart);
         } catch (IOException e) {
             assertEquals("Erro salvando a foto", e.getMessage());

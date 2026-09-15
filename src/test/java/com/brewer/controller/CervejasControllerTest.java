@@ -17,15 +17,11 @@ import com.brewer.service.CadastroCervejaService;
 import com.brewer.service.exception.ImpossivelExcluirEntidadeException;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -35,15 +31,11 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 
 import static org.junit.Assert.*;
 
-@PowerMockIgnore("javax.management.*")
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({Cervejas.class, Estilos.class, CadastroCervejaService.class, BindingResult.class, RedirectAttributes.class,
-        HttpServletRequest.class, Pageable.class, CervejaFilter.class, UriComponentsBuilder.class})
 public class CervejasControllerTest {
 
     private CervejasController controller;
@@ -70,7 +62,6 @@ public class CervejasControllerTest {
     @Before
     public void metodoInicializaCenarioDeTeste() {
         MockitoAnnotations.initMocks(this);
-        PowerMockito.mockStatic(UriComponentsBuilder.class);
         controller = new CervejasController(mockCervejaService, mockEstilosRepo, mockCervejasRepo);
         listaEstilos = EstiloBuilder.criarListaEstilos();
         Mockito.when(mockEstilosRepo.findAll()).thenReturn(listaEstilos);
@@ -102,7 +93,7 @@ public class CervejasControllerTest {
         Origem[] origens = (Origem[]) result.getModel().get(Constantes.ORIGENS);
         List<Estilo> estilos = (List<Estilo>) result.getModel().get(Constantes.ESTILOS);
 
-        Mockito.verifyZeroInteractions(mockCervejaService);
+        Mockito.verifyNoInteractions(mockCervejaService);
         assertEquals(Constantes.CADASTRO_CERVEJA_VIEW, result.getViewName());
         assertArrayEquals(Sabor.values(), sabores);
         assertArrayEquals(Origem.values(), origens);
@@ -126,9 +117,13 @@ public class CervejasControllerTest {
         Mockito.when(mockCervejasRepo.filtrar(mockCervejaFilter, mockPegeable)).thenReturn(cervejasPage);
         Mockito.when(mockHttpRequest.getRequestURL()).thenReturn(new StringBuffer("url"));
         Mockito.when(mockHttpRequest.getQueryString()).thenReturn("?");
-        Mockito.when(UriComponentsBuilder.fromHttpUrl(ArgumentMatchers.anyString())).thenReturn(uriBuilder);
 
-        ModelAndView result = controller.pesquisar(mockCervejaFilter, mockPegeable, mockHttpRequest);
+        ModelAndView result;
+        try (MockedStatic<UriComponentsBuilder> mockedUriComponentsBuilder =
+                     Mockito.mockStatic(UriComponentsBuilder.class, Mockito.CALLS_REAL_METHODS)) {
+            mockedUriComponentsBuilder.when(() -> UriComponentsBuilder.fromHttpUrl(ArgumentMatchers.anyString())).thenReturn(uriBuilder);
+            result = controller.pesquisar(mockCervejaFilter, mockPegeable, mockHttpRequest);
+        }
 
         Sabor[] sabores = (Sabor[]) result.getModel().get(Constantes.SABORES);
         Origem[] origens = (Origem[]) result.getModel().get(Constantes.ORIGENS);

@@ -5,11 +5,7 @@ import com.brewer.model.Usuario;
 import com.brewer.model.UsuarioGrupo;
 import com.brewer.repository.filter.UsuarioFilter;
 import com.brewer.repository.paginacao.PaginacaoUtil;
-import org.hibernate.Criteria;
 import org.hibernate.Hibernate;
-import org.hibernate.Session;
-import org.hibernate.criterion.*;
-import org.hibernate.sql.JoinType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -17,10 +13,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public class UsuariosImpl implements UsuariosQueries {
@@ -57,13 +56,16 @@ public class UsuariosImpl implements UsuariosQueries {
 	@Transactional(readOnly = true)
 	@Override
 	public Page<Usuario> filtrar(UsuarioFilter filtro, Pageable pageable) {
-		Criteria criteria = manager.unwrap(Session.class).createCriteria(Usuario.class);
-		
-		criteria.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY);
-		paginacaoUtil.preparar(criteria, pageable);
-		adicionarFiltro(filtro, criteria);
-		
-		List<Usuario> filtrados = criteria.list();
+		StringBuilder jpql = new StringBuilder("select distinct u from Usuario u where 1=1");
+		Map<String, Object> params = new HashMap<>();
+		adicionarFiltro(filtro, jpql, params);
+		jpql.append(paginacaoUtil.ordenar(pageable, "u"));
+
+		TypedQuery<Usuario> query = manager.createQuery(jpql.toString(), Usuario.class);
+		params.forEach(query::setParameter);
+		paginacaoUtil.preparar(query, pageable);
+
+		List<Usuario> filtrados = query.getResultList();
 		filtrados.forEach(u -> Hibernate.initialize(u.getGrupos()));
 		
 		return new PageImpl<>(filtrados, pageable, total(filtro));
@@ -72,42 +74,42 @@ public class UsuariosImpl implements UsuariosQueries {
 	@Transactional(readOnly = true)
 	@Override
 	public Usuario buscarComGrupos(Long codigo) {
-		Criteria criteria = manager.unwrap(Session.class).createCriteria(Usuario.class);
-		criteria.createAlias("grupos", "g", JoinType.LEFT_OUTER_JOIN);
-		criteria.add(Restrictions.eq("codigo", codigo));
-		criteria.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY);		
-		return (Usuario) criteria.uniqueResult();
+		return manager.createQuery("select distinct u from Usuario u left join fetch u.grupos where u.codigo = :codigo", Usuario.class)
+				.setParameter("codigo", codigo)
+				.getSingleResult();
 	}
 	
 	private Long total(UsuarioFilter filtro) {
-		Criteria criteria = manager.unwrap(Session.class).createCriteria(Usuario.class);
-		adicionarFiltro(filtro, criteria);
-		criteria.setProjection(Projections.rowCount());		
-		return (Long) criteria.uniqueResult();
+		StringBuilder jpql = new StringBuilder("select count(distinct u) from Usuario u where 1=1");
+		Map<String, Object> params = new HashMap<>();
+		adicionarFiltro(filtro, jpql, params);
+		TypedQuery<Long> query = manager.createQuery(jpql.toString(), Long.class);
+		params.forEach(query::setParameter);
+		return query.getSingleResult();
 	}
 
-	private void adicionarFiltro(UsuarioFilter filtro, Criteria criteria) {
+	private void adicionarFiltro(UsuarioFilter filtro, StringBuilder jpql, Map<String, Object> params) {
 		if (filtro != null) {
-			if (!StringUtils.isEmpty(filtro.getNome())) {
-				criteria.add(Restrictions.ilike("nome", filtro.getNome(), MatchMode.ANYWHERE));
+			if (StringUtils.hasText(filtro.getNome())) {
+				jpql.append(" and lower(u.nome) like :nome");
+				params.put("nome", "%" + filtro.getNome().toLowerCase() + "%");
 			}
 			
-			if (!StringUtils.isEmpty(filtro.getEmail())) {
-				criteria.add(Restrictions.ilike("email", filtro.getEmail(), MatchMode.START));
+			if (StringUtils.hasText(filtro.getEmail())) {
+				jpql.append(" and lower(u.email) like :email");
+				params.put("email", filtro.getEmail().toLowerCase() + "%");
 			}
 
 			if (filtro.getGrupos() != null && !filtro.getGrupos().isEmpty()) {
-				List<Criterion> subqueries = new ArrayList<>();
-				for (Long codigoGrupo : filtro.getGrupos().stream().mapToLong(Grupo::getCodigo).toArray()) {
-					DetachedCriteria dc = DetachedCriteria.forClass(UsuarioGrupo.class);
-					dc.add(Restrictions.eq("id.grupo.codigo", codigoGrupo));
-					dc.setProjection(Projections.property("id.usuario"));
-					
-					subqueries.add(Subqueries.propertyIn("codigo", dc));
+				int index = 0;
+				for (Grupo grupo : filtro.getGrupos()) {
+					String param = "grupoCodigo" + index++;
+					jpql.append(" and exists (")
+						.append("select ug from UsuarioGrupo ug where ug.id.usuario = u and ug.id.grupo.codigo = :")
+						.append(param)
+						.append(")");
+					params.put(param, grupo.getCodigo());
 				}
-				
-				Criterion[] criterions = new Criterion[subqueries.size()];
-				criteria.add(Restrictions.and(subqueries.toArray(criterions)));
 			}
 		}
 	}

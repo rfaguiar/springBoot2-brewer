@@ -13,15 +13,11 @@ import com.brewer.service.CadastroCidadeService;
 import com.brewer.service.exception.NomeCidadeJaCadastradaException;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -30,14 +26,11 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-@PowerMockIgnore("javax.management.*")
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({UriComponentsBuilder.class})
 public class CidadesControllerTest {
 
     private CidadesController controller;
@@ -63,7 +56,6 @@ public class CidadesControllerTest {
     @Before
     public void iniciarCenarioDeTeste() {
         MockitoAnnotations.initMocks(this);
-        PowerMockito.mockStatic(UriComponentsBuilder.class);
         this.controller = new CidadesController(mockCidadesRepo, mockEstadosRepo, mockCidadeService);
     }
 
@@ -117,7 +109,7 @@ public class CidadesControllerTest {
 
         List<Estado> listaEstadosResult = (List<Estado>) result.getModel().get(Constantes.ESTADOS);
 
-        Mockito.verifyZeroInteractions(mockRedirectAttrbitues);
+        Mockito.verifyNoInteractions(mockRedirectAttrbitues);
         Mockito.verify(mockBindingResult).rejectValue(Constantes.NOME, "Nome de cidade já cadastrado", "Nome de cidade já cadastrado");
         assertEquals(Constantes.CADASTRO_CIDADE_VIEW, result.getViewName());
         assertEquals(listaEstados, listaEstadosResult);
@@ -134,8 +126,8 @@ public class CidadesControllerTest {
 
         List<Estado> listaEstadosResult = (List<Estado>) result.getModel().get(Constantes.ESTADOS);
 
-        Mockito.verifyZeroInteractions(mockRedirectAttrbitues);
-        Mockito.verifyZeroInteractions(mockCidadeService);
+        Mockito.verifyNoInteractions(mockRedirectAttrbitues);
+        Mockito.verifyNoInteractions(mockCidadeService);
         assertEquals(Constantes.CADASTRO_CIDADE_VIEW, result.getViewName());
         assertEquals(listaEstados, listaEstadosResult);
     }
@@ -149,9 +141,13 @@ public class CidadesControllerTest {
         Mockito.when(mockCidadesRepo.filtrar(mockCidadeFilter, mockPageable)).thenReturn(cidadePage);
         Mockito.when(mockHttpRequest.getRequestURL()).thenReturn(new StringBuffer("url"));
         Mockito.when(mockHttpRequest.getQueryString()).thenReturn("?");
-        Mockito.when(UriComponentsBuilder.fromHttpUrl(ArgumentMatchers.anyString())).thenReturn(uriBuilder);
 
-        ModelAndView result = controller.pesquisar(mockCidadeFilter, mockPageable, mockHttpRequest);
+        ModelAndView result;
+        try (MockedStatic<UriComponentsBuilder> mockedUriComponentsBuilder =
+                     Mockito.mockStatic(UriComponentsBuilder.class, Mockito.CALLS_REAL_METHODS)) {
+            mockedUriComponentsBuilder.when(() -> UriComponentsBuilder.fromHttpUrl(ArgumentMatchers.anyString())).thenReturn(uriBuilder);
+            result = controller.pesquisar(mockCidadeFilter, mockPageable, mockHttpRequest);
+        }
 
         List<Estado> listaEstadosResult = (List<Estado>) result.getModel().get(Constantes.ESTADOS);
         PageWrapper<Cidade> paginaWrapperResult = (PageWrapper<Cidade>) result.getModel().get(Constantes.PAGINADOR_VIEW);

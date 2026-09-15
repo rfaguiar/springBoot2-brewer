@@ -17,7 +17,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import javax.persistence.EntityManager;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -37,6 +37,7 @@ public class VendasImplTest {
     @Before
     public void init() {
         MockitoAnnotations.initMocks(this);
+        org.mockito.Mockito.when(mockPaginacaoUtil.ordenar(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString())).thenReturn("");
         EntityManager entityManager = JPAHibernateTest.getEntityManager();
 
         venda1 = VendaBuilder.criarVenda();
@@ -134,7 +135,7 @@ public class VendasImplTest {
     @Test
     public void valorTicketMedioNoAno() {
         BigDecimal result = vendasImpl.valorTicketMedioNoAno();
-        assertEquals("456", result.toString());
+        assertEquals("456.00", result.toString());
     }
 
     @Test

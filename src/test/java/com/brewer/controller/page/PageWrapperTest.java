@@ -1,28 +1,22 @@
 package com.brewer.controller.page;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 import static org.junit.Assert.*;
 
-@PowerMockIgnore("javax.management.*")
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({UriComponentsBuilder.class})
 public class PageWrapperTest {
 
     private PageWrapper<Object> pageWrapper;
@@ -36,18 +30,25 @@ public class PageWrapperTest {
     private Sort mockSort;
     @Mock
     private Sort.Order mockOrder;
+    private MockedStatic<UriComponentsBuilder> mockedUriComponentsBuilder;
 
     @Before
     public void metodoInicializaCenarioDeTeste() {
         MockitoAnnotations.initMocks(this);
-        PowerMockito.mockStatic(UriComponentsBuilder.class);
         Mockito.when(mockHttpRequest.getRequestURL()).thenReturn(new StringBuffer("url"));
         Mockito.when(mockHttpRequest.getQueryString()).thenReturn("?");
-        Mockito.when(UriComponentsBuilder.fromHttpUrl(ArgumentMatchers.anyString())).thenReturn(mockUriBuilder);
         Mockito.when(mockPage.getSort()).thenReturn(mockSort);
         Mockito.when(mockSort.getOrderFor(ArgumentMatchers.anyString())).thenReturn(mockOrder);
 
+        mockedUriComponentsBuilder = Mockito.mockStatic(UriComponentsBuilder.class, Mockito.CALLS_REAL_METHODS);
+        mockedUriComponentsBuilder.when(() -> UriComponentsBuilder.fromHttpUrl(ArgumentMatchers.anyString())).thenReturn(mockUriBuilder);
+
         this.pageWrapper = new PageWrapper<>(mockPage, mockHttpRequest);
+    }
+
+    @After
+    public void limparCenariosDeTeste() {
+        mockedUriComponentsBuilder.close();
     }
 
     @Test
@@ -87,7 +88,6 @@ public class PageWrapperTest {
 
     @Test
     public void testeMetodoUrlOrdenada() {
-        Mockito.when(UriComponentsBuilder.fromUriString(ArgumentMatchers.anyString())).thenReturn(mockUriBuilder);
         Mockito.when(mockUriBuilder.replaceQueryParam(ArgumentMatchers.anyString(), ArgumentMatchers.anyString())).thenReturn(mockUriBuilder);
         UriComponents mockuriBuilder = Mockito.mock(UriComponents.class);
         Mockito.when(mockUriBuilder.build(true)).thenReturn(mockuriBuilder);
