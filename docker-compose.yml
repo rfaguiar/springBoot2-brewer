@@ -1,0 +1,41 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: brewer-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: brewer-springboot
+    ports:
+      - "3306:3306"
+    volumes:
+      - brewer-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: brewer-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/brewer-springboot?useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      BREWER_EMAIL_USERNAME: ""
+      BREWER_EMAIL_PASSWORD: ""
+      BREWER_FOTO_STORAGE_LOCAL_URL_BASE: http://localhost:8080/fotos/
+      BREWER_FOTO_STORAGE_LOCAL_PATH: /home/spring/.brewerfotos
+    ports:
+      - "8080:8080"
+
+volumes:
+  brewer-mysql-data:
+

@@ -122,6 +122,16 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <dependency>
 <groupId>org.ehcache</groupId>
 <artifactId>ehcache</artifactId>
+<exclusions>
+<exclusion>
+<groupId>org.glassfish.jaxb</groupId>
+<artifactId>jaxb-runtime</artifactId>
+</exclusion>
+<exclusion>
+<groupId>javax.xml.bind</groupId>
+<artifactId>jaxb-api</artifactId>
+</exclusion>
+</exclusions>
 </dependency>
 <!-- JAXB (Jakarta namespace) - required by Hibernate to parse META-INF/orm.xml on Java 11+ -->
 <dependency>

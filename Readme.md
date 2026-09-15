@@ -1,20 +1,52 @@
-[![Deploy](https://www.herokucdn.com/deploy/button.png)](https://brewer-springboot-app1.herokuapp.com/) [![Build Status](https://travis-ci.org/rfaguiar/springBoot2-brewer.svg?branch=master)](https://travis-ci.org/rfaguiar/springBoot2-brewer)
-[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=com.brewer%3Abrewer-springboot&metric=alert_status)](https://sonarcloud.io/dashboard?id=com.brewer%3Abrewer-springboot)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=com.brewer%3Abrewer-springboot&metric=coverage)](https://sonarcloud.io/component_measures?id=com.brewer%3Abrewer-springboot&metric=Coverage)  
+## Docker
 
-# Tecnologias: SpringBoot2, Spring Data, Spring Security, Thymeleaf 3, Java 8, Hibernate Validator, Maven 3, MySql 5  
+Build image:
 
-* compilação com maven 3.3  
-    > mvn clean package  
-* serviço para envio de email  
-    > https://sendgrid.com/  
-* configurações  
-    > src/main/resources/application.properties  
-    > src/main/resources/application-prod.properties  
+```bash
+docker build -t springboot2-brewer:v1 -t springboot2-brewer:latest --platform linux/amd64 .
+```
 
-#### Aplicação na cloud do heroku pode estar dormindo, tenha paciência  
-    
-[link para aplicação no heroku!](https://brewer-springboot-app1.herokuapp.com/)  
-    
-user: admin@brewer.com  
-pass: admin  
+Run container:
+
+```bash
+docker run --rm -p 8080:8080 -e SPRING_DATASOURCE_URL="jdbc:mysql://host.docker.internal:3306/brewer-springboot?useSSL=false" -e SPRING_DATASOURCE_USERNAME="root" -e SPRING_DATASOURCE_PASSWORD="root" -e BREWER_EMAIL_USERNAME="" -e BREWER_EMAIL_PASSWORD="" springboot2-brewer:latest
+```
+
+Optional env vars:
+- `BREWER_FOTO_STORAGE_LOCAL_URL_BASE`
+- `BREWER_FOTO_STORAGE_LOCAL_PATH`
+- `JAVA_OPTS`
+
+### Docker Compose (app + MySQL)
+
+Para subir a aplicação junto com o banco MySQL localmente:
+
+```bash
+docker compose up --build -d
+```
+
+Aguarde o MySQL ficar saudável e a aplicação aplicar as migrações do Flyway, depois acesse:
+
+```
+http://localhost:8080/login
+```
+
+Ver logs:
+
+```bash
+docker compose logs -f app
+docker compose logs -f mysql
+```
+
+Derrubar o stack (mantendo os dados do banco):
+
+```bash
+docker compose down
+```
+
+Derrubar e apagar os dados do banco:
+
+```bash
+docker compose down -v
+```
+
