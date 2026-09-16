@@ -21,108 +21,164 @@ import org.springframework.data.domain.Sort;
 
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class UsuariosImplTest {
 
     private UsuariosImpl usuariosImpl;
     private Usuario usuario1;
+    private Usuario usuario2;
+    private Grupo grupoAdministrador;
+    private Grupo grupoVendedor;
+
     @Mock
-    private Pageable mockPageable;
+    private Pageable pageable;
     @Mock
-    private Sort mockSort;
+    private Sort sort;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         MockitoAnnotations.initMocks(this);
         EntityManager entityManager = JPAHibernateTest.getEntityManager();
-
         entityManager.getTransaction().begin();
-        usuario1 = UsuarioBuilder.criarUsuario();
-        List<Grupo> grupos = GrupoBuilder.criarListaGrupos();
-        grupos.forEach(grupo -> {
-            List<Permissao> permissaos = PermissaoBuilder.criarListaPermissao();
-            permissaos.forEach(permissao -> {
-                Permissao permissaoP = entityManager.merge(permissao);
-                permissao.setCodigo(permissaoP.getCodigo());
-            });
-            grupo.setPermissoes(permissaos);
-            entityManager.persist(grupo);
-        });
-        entityManager.persist(usuario1);
-        usuario1.setGrupos(grupos);
 
-        Usuario usuario2 = UsuarioBuilder.criarUsuario();
-        usuario2.setGrupos(null);
+        grupoAdministrador = criarGrupo(entityManager, "Administradores", "PERMISSAO_ADMIN");
+        grupoVendedor = criarGrupo(entityManager, "Vendedores", "PERMISSAO_VENDA");
+
+        usuario1 = UsuarioBuilder.criarUsuario();
+        usuario1.setNome("Carlos Admin");
+        usuario1.setEmail("carlos@brewer.com");
+        usuario1.setGrupos(Arrays.asList(grupoAdministrador, grupoVendedor));
+        entityManager.persist(usuario1);
+
+        usuario2 = UsuarioBuilder.criarUsuario();
+        usuario2.setNome("Maria Vendas");
+        usuario2.setEmail("maria@brewer.com");
+        usuario2.setGrupos(Collections.singletonList(grupoVendedor));
         usuario2.setConfirmacaoSenha(usuario2.getSenha());
         entityManager.persist(usuario2);
 
-        this.usuariosImpl = new UsuariosImpl(entityManager, new PaginacaoUtil());
-        Mockito.when(mockPageable.getPageSize()).thenReturn(2);
-        Mockito.when(mockPageable.getPageNumber()).thenReturn(0);
-        Mockito.when(mockPageable.getSort()).thenReturn(mockSort);
-        List<Sort.Order> order = new ArrayList<>();
-        order.add(new Sort.Order(Sort.Direction.ASC, "codigo"));
-        Mockito.when(mockSort.iterator()).thenReturn(order.iterator());
+        usuariosImpl = new UsuariosImpl(entityManager, new PaginacaoUtil());
+        Mockito.when(pageable.getPageSize()).thenReturn(10);
+        Mockito.when(pageable.getPageNumber()).thenReturn(0);
+        Mockito.when(pageable.getSort()).thenReturn(sort);
+        List<Sort.Order> order = Collections.singletonList(new Sort.Order(Sort.Direction.ASC, "codigo"));
+        Mockito.when(sort.iterator()).thenReturn(order.iterator());
+        Mockito.when(sort.isSorted()).thenReturn(true);
     }
 
     @After
-    public void end() {
+    public void tearDown() {
         JPAHibernateTest.roolbackEcloseEntityManager();
     }
 
     @Test
-    public void testeMetodoFiltrarQuandoSemFiltrosDeveRetornarTodosUsuarios() {
-        Page<Usuario> result = usuariosImpl.filtrar(new UsuarioFilter(), mockPageable);
+    public void testeMetodoFiltrarQuandoSemFiltrosDeveRetornarTodosUsuariosComConteudoCorreto() {
+        Page<Usuario> result = usuariosImpl.filtrar(new UsuarioFilter(), pageable);
+
         assertEquals(2, result.getContent().size());
-        usuariosImpl = new UsuariosImpl();
+        assertUsuario(result.getContent().get(0), usuario1);
+        assertUsuario(result.getContent().get(1), usuario2);
     }
 
     @Test
-    public void testeMetodoFiltrarQuandoFiltrosInformadoDeveRetornarUsuario() {
-        Usuario usuario3 = UsuarioBuilder.criarUsuario();
-        usuario3.setCodigo(usuario1.getCodigo());
-        usuario3.setGrupos(usuario1.getGrupos());
+    public void testeMetodoFiltrarQuandoFiltroNuloDeveRetornarTodosUsuarios() {
+        Page<Usuario> result = usuariosImpl.filtrar(null, pageable);
+
+        assertEquals(2, result.getContent().size());
+        assertEquals("Carlos Admin", result.getContent().get(0).getNome());
+        assertEquals("Maria Vendas", result.getContent().get(1).getNome());
+    }
+
+    @Test
+    public void testeMetodoFiltrarQuandoFiltrosCombinadosSaoInformadosDeveRetornarApenasUsuarioCorrespondente() {
         UsuarioFilter filtro = new UsuarioFilter();
-        filtro.setNome(usuario3.getNome());
-        filtro.setEmail(usuario3.getEmail());
-        List<Grupo> filtroGrupos = new ArrayList<>();
-        Grupo grupo = new Grupo();
-        grupo.setCodigo(usuario3.getGrupos().get(0).getCodigo());
-        filtroGrupos.add(grupo);
-        filtro.setGrupos(filtroGrupos);
+        filtro.setNome("Carlos");
+        filtro.setEmail("carlos@");
+        filtro.setGrupos(Arrays.asList(grupoAdministrador, grupoVendedor));
 
-        Page<Usuario> result = usuariosImpl.filtrar(filtro, mockPageable);
+        Page<Usuario> result = usuariosImpl.filtrar(filtro, pageable);
+
         assertEquals(1, result.getContent().size());
-        assertTrue(usuario3.equals(result.getContent().get(0)));
-        assertEquals(usuario3.toString(), result.getContent().get(0).toString());
-        assertTrue(usuario3.getGrupos().get(0).getPermissoes().get(0)
-                .equals(result.getContent().get(0).getGrupos().get(0).getPermissoes().get(0)));
-        assertEquals(usuario3.getGrupos().get(0).getPermissoes().get(0).toString(),
-                result.getContent().get(0).getGrupos().get(0).getPermissoes().get(0).toString());
+        assertUsuario(result.getContent().get(0), usuario1);
+        assertEquals(2, result.getContent().get(0).getGrupos().size());
+        assertTrue(result.getContent().get(0).getGrupos().stream()
+                .anyMatch(grupo -> "Administradores".equals(grupo.getNome())));
+        assertTrue(result.getContent().get(0).getGrupos().stream()
+                .anyMatch(grupo -> "Vendedores".equals(grupo.getNome())));
     }
 
     @Test
-    public void testeMetodoPorEmailEAtivoDeveRetornarUsuario() {
-        Optional<Usuario> result = usuariosImpl.porEmailEAtivo("emailteste@teste.com");
+    public void testeMetodoFiltrarQuandoGruposVazioENomeEmailEmBrancoNaoDeveAplicarFiltros() {
+        UsuarioFilter filtro = new UsuarioFilter();
+        filtro.setNome("   ");
+        filtro.setEmail("");
+        filtro.setGrupos(new ArrayList<>());
+
+        Page<Usuario> result = usuariosImpl.filtrar(filtro, pageable);
+
+        assertEquals(2, result.getContent().size());
+        assertEquals("Carlos Admin", result.getContent().get(0).getNome());
+        assertEquals("Maria Vendas", result.getContent().get(1).getNome());
+    }
+
+    @Test
+    public void testeMetodoPorEmailEAtivoDeveRetornarUsuarioAtivo() {
+        Optional<Usuario> result = usuariosImpl.porEmailEAtivo("CARLOS@BREWER.COM");
+
         assertTrue(result.isPresent());
+        assertEquals(usuario1.getCodigo(), result.get().getCodigo());
     }
 
     @Test
-    public void testeMetodoPermissoesDeveRetornarPermissoesDoUsuarioInformado() {
+    public void testeMetodoPorEmailEAtivoQuandoEmailNaoExisteDeveRetornarVazio() {
+        Optional<Usuario> result = usuariosImpl.porEmailEAtivo("inexistente@brewer.com");
+
+        assertFalse(result.isPresent());
+    }
+
+    @Test
+    public void testeMetodoPermissoesDeveRetornarPermissoesDistintasDoUsuarioInformado() {
         List<String> result = usuariosImpl.permissoes(usuario1);
-        assertEquals(1, result.size());
-        assertEquals("nomePermissao", result.get(0));
+
+        assertEquals(2, result.size());
+        assertTrue(result.contains("PERMISSAO_ADMIN"));
+        assertTrue(result.contains("PERMISSAO_VENDA"));
     }
 
     @Test
     public void testeMetodoBuscarComGruposDeveRetornarUsuarioPeloIdComListaDeGrupos() {
         Usuario result = usuariosImpl.buscarComGrupos(usuario1.getCodigo());
-        assertEquals(usuario1, result);
-        assertEquals(1, result.getGrupos().size());
+
+        assertUsuario(result, usuario1);
+        assertEquals(2, result.getGrupos().size());
+        assertTrue(result.getGrupos().stream()
+                .flatMap(grupo -> grupo.getPermissoes().stream())
+                .anyMatch(permissao -> "PERMISSAO_ADMIN".equals(permissao.getNome())));
+    }
+
+    private Grupo criarGrupo(EntityManager entityManager, String nomeGrupo, String nomePermissao) {
+        Permissao permissao = PermissaoBuilder.get().nome(nomePermissao).build();
+        entityManager.persist(permissao);
+
+        Grupo grupo = GrupoBuilder.get().nome(nomeGrupo).permissoes(Collections.singletonList(permissao)).build();
+        entityManager.persist(grupo);
+        return grupo;
+    }
+
+    private void assertUsuario(Usuario atual, Usuario esperado) {
+        assertEquals(esperado.getCodigo(), atual.getCodigo());
+        assertEquals(esperado.getNome(), atual.getNome());
+        assertEquals(esperado.getEmail(), atual.getEmail());
+        assertEquals(esperado.getSenha(), atual.getSenha());
+        assertEquals(esperado.getAtivo(), atual.getAtivo());
+        assertEquals(esperado.getDataNascimento(), atual.getDataNascimento());
     }
 }

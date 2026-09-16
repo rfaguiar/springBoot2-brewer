@@ -8,6 +8,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,71 +16,92 @@ import org.springframework.data.domain.Pageable;
 import jakarta.persistence.EntityManager;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 public class EstilosImplTest {
 
     private EstilosImpl estilosImpl;
+
     @Mock
-    private PaginacaoUtil mockPaginacaoUtil;
+    private PaginacaoUtil paginacaoUtil;
     @Mock
-    private Pageable mockPageable;
+    private Pageable pageable;
 
     @Before
-    public void init() {
+    public void setUp() {
         MockitoAnnotations.initMocks(this);
-        org.mockito.Mockito.when(mockPaginacaoUtil.ordenar(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString())).thenReturn("");
+        Mockito.when(paginacaoUtil.ordenar(Mockito.any(), Mockito.anyString())).thenReturn("");
         EntityManager entityManager = JPAHibernateTest.getEntityManager();
 
-        Estilo e1 = new Estilo();
-        e1.setNome("Amber Lager");
-        Estilo e2 = new Estilo();
-        e2.setNome("Dark Lager");
-        Estilo e3 = new Estilo();
-        e3.setNome("Pale Lager");
-        Estilo e4 = new Estilo();
-        e4.setNome("Pilsner");
-
         entityManager.getTransaction().begin();
-        entityManager.persist(e1);
-        entityManager.persist(e2);
-        entityManager.persist(e3);
-        entityManager.persist(e4);
+        persistirEstilo(entityManager, "Amber Lager");
+        persistirEstilo(entityManager, "Dark Lager");
+        persistirEstilo(entityManager, "Pale Lager");
+        persistirEstilo(entityManager, "Pilsner");
 
-        estilosImpl = new EstilosImpl(entityManager, mockPaginacaoUtil);
+        estilosImpl = new EstilosImpl(entityManager, paginacaoUtil);
     }
 
     @After
-    public void end() {
+    public void tearDown() {
         JPAHibernateTest.roolbackEcloseEntityManager();
     }
 
     @Test
-    public void testeMetodoFiltrarQuandoNaoContemFiltrosDeveRetornarTodosRegistros() {
-        EstiloFilter filtro = new EstiloFilter();
-        Page<Estilo> result = estilosImpl.filtrar(filtro, mockPageable);
-        assertNotNull(result);
+    public void testeMetodoFiltrarQuandoNaoContemFiltrosDeveRetornarTodosRegistrosComConteudoCorreto() {
+        Page<Estilo> result = estilosImpl.filtrar(new EstiloFilter(), pageable);
+
         assertEquals(4, result.getContent().size());
         assertEquals("Amber Lager", result.getContent().get(0).getNome());
+        assertEquals("Dark Lager", result.getContent().get(1).getNome());
+        assertEquals("Pale Lager", result.getContent().get(2).getNome());
+        assertEquals("Pilsner", result.getContent().get(3).getNome());
+    }
+
+    @Test
+    public void testeMetodoFiltrarQuandoFiltroNuloDeveRetornarTodosRegistros() {
+        Page<Estilo> result = estilosImpl.filtrar(null, pageable);
+
+        assertEquals(4, result.getContent().size());
+        assertEquals("Amber Lager", result.getContent().get(0).getNome());
+        assertEquals("Pilsner", result.getContent().get(3).getNome());
     }
 
     @Test
     public void testeMetodoFiltrarQuandoFiltroPorNomeDeveRetornarCompativeisComFiltro() {
         EstiloFilter filtro = new EstiloFilter();
         filtro.setNome("Amber Lager");
-        Page<Estilo> result = estilosImpl.filtrar(filtro, mockPageable);
-        assertNotNull(result);
+
+        Page<Estilo> result = estilosImpl.filtrar(filtro, pageable);
+
         assertEquals(1, result.getContent().size());
         assertEquals("Amber Lager", result.getContent().get(0).getNome());
     }
 
     @Test
-    public void testeMetodoFiltrarQuandoFiltroPorNomeComPartesDotextoDeveRetornarCompativeisComFiltro() {
+    public void testeMetodoFiltrarQuandoNomeEmBrancoNaoDeveAplicarFiltro() {
+        EstiloFilter filtro = new EstiloFilter();
+        filtro.setNome("   ");
+
+        Page<Estilo> result = estilosImpl.filtrar(filtro, pageable);
+
+        assertEquals(4, result.getContent().size());
+        assertEquals("Dark Lager", result.getContent().get(1).getNome());
+    }
+
+    @Test
+    public void testeMetodoFiltrarQuandoFiltroPorNomeComParteDoTextoDeveRetornarCompativeisComFiltro() {
         EstiloFilter filtro = new EstiloFilter();
         filtro.setNome("Amber");
-        Page<Estilo> result = estilosImpl.filtrar(filtro, mockPageable);
-        assertNotNull(result);
+
+        Page<Estilo> result = estilosImpl.filtrar(filtro, pageable);
+
         assertEquals(1, result.getContent().size());
         assertEquals("Amber Lager", result.getContent().get(0).getNome());
+    }
+
+    private void persistirEstilo(EntityManager entityManager, String nome) {
+        Estilo estilo = new Estilo();
+        estilo.setNome(nome);
+        entityManager.persist(estilo);
     }
 }

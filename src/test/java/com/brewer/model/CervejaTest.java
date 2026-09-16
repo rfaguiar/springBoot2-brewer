@@ -1,11 +1,16 @@
 package com.brewer.model;
 
 import com.brewer.Constantes;
+import com.brewer.builder.CervejaBuilder;
+import com.brewer.builder.EstiloBuilder;
 import org.junit.Test;
 
 import java.math.BigDecimal;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class CervejaTest {
 
@@ -40,5 +45,59 @@ public class CervejaTest {
         assertEquals("urlFotoTeste", cerveja.getUrlFoto());
         assertEquals("urlThumbNailTeste", cerveja.getUrlThumbnailFoto());
         assertTrue(cerveja.isNovaFoto());
+    }
+
+    @Test
+    public void shouldImplementEqualsAndHashCodeWithCurrentProductionBehavior() {
+        Cerveja first = criarCervejaBase();
+        Cerveja second = criarCervejaBase();
+
+        assertThat(first)
+                .isEqualTo(second)
+                .hasSameHashCodeAs(second);
+    }
+
+    @Test
+    public void shouldIgnoreOrigemSaborAndEstiloInEqualsAndHashCodeBecauseTheyAreNotUsedByImplementation() {
+        Cerveja first = criarCervejaBase();
+        Cerveja second = criarCervejaBase();
+        second.setOrigem(Origem.INTERNACIONAL);
+        second.setSabor(Sabor.FORTE);
+        second.setEstilo(EstiloBuilder.get().codigo(2L).nome("Stout").build());
+
+        assertThat(first)
+                .isEqualTo(second)
+                .hasSameHashCodeAs(second);
+    }
+
+    @Test
+    public void shouldRenderToStringWithKeyFields() {
+        assertThat(criarCervejaBase().toString())
+                .contains("Cerveja")
+                .contains("sku='AA1111'")
+                .contains("nome='Pilsen Teste'")
+                .contains("descricao='Descricao teste'")
+                .contains("valor=12.50");
+    }
+
+    private Cerveja criarCervejaBase() {
+        return CervejaBuilder.get()
+                .codigo(1L)
+                .sku("AA1111")
+                .nome("Pilsen Teste")
+                .descricao("Descricao teste")
+                .valor(new BigDecimal("12.50"))
+                .teorAlcoolico(new BigDecimal("5.0"))
+                .comissao(new BigDecimal("1.5"))
+                .quantidadeEstoque(8)
+                .origem(Origem.NACIONAL)
+                .sabor(Sabor.SUAVE)
+                .estilo(EstiloBuilder.get().codigo(1L).nome("Pilsen").build())
+                .foto("foto.png")
+                .contentType("image/png")
+                .novaFoto(true)
+                .urlFoto("https://teste/foto.png")
+                .urlThumbnailFoto("https://teste/thumb.png")
+                .build();
     }
 }
