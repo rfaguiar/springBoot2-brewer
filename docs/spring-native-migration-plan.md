@@ -1,5 +1,49 @@
 # Plano de Migração para Spring Native (GraalVM Native Image)
 
+> ## Status de execução (branch `feature/spring-native-migration`)
+>
+> Este plano foi parcialmente **executado** nesta branch, com um build real de imagem nativa
+> via `mvn -Pnative spring-boot:build-image` (Cloud Native Buildpacks, JDK 25 + Maven local +
+> Docker, sem necessidade de instalar GraalVM localmente). Resultado resumido:
+>
+> - ✅ **Fase 1 confirmada sem alterações no `pom.xml`**: os profiles `native`/`nativeTest`
+>   (com `org.graalvm.buildtools:native-maven-plugin`) já vêm herdados de
+>   `spring-boot-starter-parent:4.1.1` (verificado com `mvn help:all-profiles`), incluindo a
+>   exclusão automática do `spring-boot-devtools` do build nativo.
+> - ✅ **JasperReports removido do `pom.xml`** (`net.sf.jasperreports:jasperreports` e
+>   `jasperreports-fonts`): confirmado por busca no código-fonte que a dependência **não é
+>   usada em nenhum lugar** (nenhum `.jrxml`, nenhuma referência a `net.sf.jasperreports.*`).
+>   Ela carregava um runtime Groovy embutido cujos inicializadores de classe (`CacheableCallSite`)
+>   iniciam threads de background e retêm objetos ASM (`groovyjarjarasm.asm.Type`) que o
+>   GraalVM native-image rejeita no heap da imagem. Suíte de testes (275 testes) validada
+>   com `mvn test` após a remoção — **100% verde**, nenhuma regressão.
+> - 🔴 **Bloqueador real encontrado (não previsto originalmente)**: `nz.net.ultraq.thymeleaf:
+>   thymeleaf-layout-dialect` (usado de fato pelos templates via `layout:decorate`/
+>   `layout:fragment` em `LayoutPadrao.html`/`LayoutSimples.html` e todas as telas) depende
+>   obrigatoriamente (não opcional) de **Apache Groovy** — a própria biblioteca é implementada
+>   em Groovy. O runtime de metaprogramação do Groovy (`groovy.lang.GroovySystem`,
+>   `org.codehaus.groovy.reflection.ClassInfo`) mantém estado vivo (filas, locks, referências
+>   fracas ligadas a um `ForkJoinPool`) que o GraalVM não permite congelar no heap da imagem
+>   em build-time. Foram testadas 3 variações de `--initialize-at-run-time` (escopo crescente:
+>   `org.codehaus.groovy` → `+groovyjarjarasm` → `+groovy`) e cada uma resolveu um erro apenas
+>   para revelar outro erro equivalente em uma classe Groovy diferente — um padrão que indica
+>   incompatibilidade estrutural, não uma hint pontual faltando.
+> - ⏭️ **Próximo passo recomendado** (fora do escopo desta execução): substituir
+>   `thymeleaf-layout-dialect` por fragmentos nativos do Thymeleaf (`th:insert`/`th:replace`/
+>   `th:fragment`), eliminando a dependência de Groovy, e então repetir o build nativo. Essa
+>   troca exige revisão de todos os templates HTML que usam `layout:decorate`/`layout:fragment`
+>   (aproximadamente 12 arquivos em `src/main/resources/templates`), portanto foi tratada como
+>   um item de acompanhamento e não foi executada nesta sessão.
+> - ℹ️ `aws-java-sdk-s3` (AWS SDK v1) não chegou a ser exercitado no build porque o bean que o
+>   usa (`S3Config`) está anotado com `@Profile("prod")`, então o processamento Spring AOT
+>   (que roda sem esse profile ativo por padrão) não gera definição de bean para ele — o
+>   risco documentado no item 3 permanece válido para quando o profile `prod` for ativado
+>   durante o build/execução nativa.
+>
+> Nenhuma alteração de comportamento em produção foi feita: a única mudança de dependências
+> (remoção do JasperReports) foi verificada como segura por análise estática de uso e pela
+> suíte de testes completa.
+
 > Referências oficiais utilizadas:
 > - [Introducing GraalVM Native Images](https://docs.spring.io/spring-boot/reference/packaging/native-image/introducing-graalvm-native-images.html)
 > - [Advanced Topics — Native Image](https://docs.spring.io/spring-boot/reference/packaging/native-image/advanced-topics.html)

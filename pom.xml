@@ -29,10 +29,9 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <thumbnailator.version>0.4.8</thumbnailator.version>
 <!-- AWS SDK - S3 -->
 <aws-java-sdk-s3.version>1.12.261</aws-java-sdk-s3.version>
-<!-- JasperReports -->
-		<jasperreports.version>7.0.7</jasperreports.version>
-		<jasperreports-fonts.version>7.0.7</jasperreports-fonts.version>
-		<!-- commons-beanutils was a transitive dependency of jasperreports 6.x; dropped in 7.x, now pinned explicitly (1.11.0 fixes CVE-2025-48734) -->
+<!-- commons-beanutils was a transitive dependency of jasperreports 6.x; jasperreports has since been removed
+		     (unused in the codebase and incompatible with GraalVM native-image, see docs/spring-native-migration-plan.md),
+		     but commons-beanutils is still used directly by com.brewer.validation, so it stays pinned (1.11.0 fixes CVE-2025-48734) -->
 		<commons-beanutils.version>1.11.0</commons-beanutils.version>
 </properties>
 <dependencies>
@@ -114,25 +113,14 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 </exclusion>
 </exclusions>
 </dependency>
-<!-- JasperReports -->
-<dependency>
-<groupId>net.sf.jasperreports</groupId>
-<artifactId>jasperreports</artifactId>
-<version>${jasperreports.version}</version>
-<scope>compile</scope>
-<exclusions>
-<exclusion>
-<groupId>commons-logging</groupId>
-<artifactId>commons-logging</artifactId>
-</exclusion>
-</exclusions>
-</dependency>
-<dependency>
-<groupId>net.sf.jasperreports</groupId>
-<artifactId>jasperreports-fonts</artifactId>
-<version>${jasperreports-fonts.version}</version>
-<scope>compile</scope>
-</dependency>
+<!-- JasperReports dependency removed: it was unused anywhere in the codebase (no .jrxml resources,
+		     no code references to net.sf.jasperreports.*) and pulled in an embedded Groovy runtime whose
+		     class initializers start background threads (e.g. org.codehaus.groovy...CacheableCallSite) and
+		     retain build time only ASM objects (groovyjarjarasm.asm.Type) in static state; both are
+		     disallowed in a GraalVM native-image heap and would require an open ended series of
+		     initialize-at-run-time / initialize-at-build-time workarounds for a dependency that is dead
+		     weight. See docs/spring-native-migration-plan.md (section 8, Fase 3) for details. -->
+		
 <!-- EhCache -->
 <dependency>
 <groupId>org.ehcache</groupId>
@@ -266,4 +254,20 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 			</plugin>
 </plugins>
 </build>
+	<!--
+		GraalVM Native Image status (see docs/spring-native-migration-plan.md for the full
+		investigation): the 'native'/'nativeTest' profiles are already inherited from
+		spring-boot-starter-parent (mvn -Pnative spring-boot:build-image / mvn -Pnative native:compile),
+		but a real native-image build of this project currently FAILS because of Apache Groovy
+		(org.apache.groovy:groovy), a mandatory transitive dependency of
+		nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect (which IS used by this project's Thymeleaf
+		templates for layout:decorate/layout:fragment). Groovy's metaprogramming runtime
+		(groovy.lang.GroovySystem / org.codehaus.groovy.reflection.ClassInfo) keeps live thread/queue
+		state that GraalVM's image-heap analysis rejects, and forcing it to be initialized at run
+		time (initialize-at-run-time=org.codehaus.groovy,groovy,groovyjarjarasm) only moves the
+		failure to a different Groovy singleton, indicating a deeper, unresolved incompatibility
+		rather than a single missing hint. This must be resolved (most likely by replacing
+		thymeleaf-layout-dialect with plain Thymeleaf th:insert/th:replace fragments) before a
+		native image build of this application can succeed.
+	-->
 </project>
