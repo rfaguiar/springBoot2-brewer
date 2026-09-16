@@ -219,6 +219,35 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <groupId>org.springframework.boot</groupId>
 <artifactId>spring-boot-maven-plugin</artifactId>
 </plugin>
+			<plugin>
+				<groupId>org.pitest</groupId>
+				<artifactId>pitest-maven</artifactId>
+				<version>1.19.1</version>
+				<configuration>
+					<targetClasses>
+						<param>com.brewer.service.*</param>
+						<param>com.brewer.controller.*</param>
+						<param>com.brewer.model.*</param>
+						<param>com.brewer.repository.helper.*</param>
+						<param>com.brewer.storage.*</param>
+						<param>com.brewer.session.*</param>
+						<param>com.brewer.security.*</param>
+						<param>com.brewer.validation.*</param>
+					</targetClasses>
+					<targetTests>
+						<param>com.brewer.*</param>
+					</targetTests>
+					<outputFormats>
+						<param>HTML</param>
+						<param>XML</param>
+					</outputFormats>
+					<timestampedReports>false</timestampedReports>
+					<timeoutConstant>15000</timeoutConstant>
+					<timeoutFactor>3</timeoutFactor>
+					<threads>4</threads>
+					<exportLineCoverage>false</exportLineCoverage>
+				</configuration>
+			</plugin>
 </plugins>
 </build>
 </project>
