@@ -19,9 +19,11 @@ RUN apk update && apk upgrade --no-cache openssl expat
 RUN addgroup -S spring && adduser -S spring -G spring
 
 COPY --from=build /workspace/target/*.jar /app/app.jar
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 8080
 ENV JAVA_OPTS=""
 USER spring
 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
