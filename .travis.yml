@@ -2,7 +2,7 @@ language: java
 script:
  - mvn clean install
 jdk:
- - oraclejdk8
+ - openjdk25
 
 deploy:
   provider: heroku
