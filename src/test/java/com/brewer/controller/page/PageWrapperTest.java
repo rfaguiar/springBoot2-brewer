@@ -59,9 +59,12 @@ public class PageWrapperTest {
         Mockito.when(mockUriComponentsBase.toUriString()).thenReturn(URL_COM_QUERY);
 
         mockedUriComponentsBuilder = Mockito.mockStatic(UriComponentsBuilder.class, Mockito.CALLS_REAL_METHODS);
-        mockedUriComponentsBuilder.when(() -> UriComponentsBuilder.fromHttpUrl(URL_COM_QUERY)).thenReturn(mockUriBuilder);
-        mockedUriComponentsBuilder.when(() -> UriComponentsBuilder.fromHttpUrl(URL_BASE)).thenReturn(mockUriBuilder);
-        mockedUriComponentsBuilder.when(() -> UriComponentsBuilder.fromUriString(URL_COM_QUERY)).thenReturn(mockUriBuilderOrdenacao);
+        // First invocation (constructor, called with the full request URL) must resolve to mockUriBuilder;
+        // urlOrdenada() rebuilds the same URL string and calls fromUriString again, which must resolve to
+        // mockUriBuilderOrdenacao. Mockito resolves repeated invocations with the same arguments in order.
+        mockedUriComponentsBuilder.when(() -> UriComponentsBuilder.fromUriString(URL_COM_QUERY))
+                .thenReturn(mockUriBuilder, mockUriBuilderOrdenacao);
+        mockedUriComponentsBuilder.when(() -> UriComponentsBuilder.fromUriString(URL_BASE)).thenReturn(mockUriBuilder);
         mockedUriComponentsBuilder.clearInvocations();
     }
 
@@ -74,7 +77,7 @@ public class PageWrapperTest {
     public void deveConstruirUrlComQueryStringQuandoElaExistir() {
         new PageWrapper<>(mockPage, mockHttpRequest);
 
-        mockedUriComponentsBuilder.verify(() -> UriComponentsBuilder.fromHttpUrl(URL_COM_QUERY));
+        mockedUriComponentsBuilder.verify(() -> UriComponentsBuilder.fromUriString(URL_COM_QUERY));
     }
 
     @Test
@@ -83,7 +86,7 @@ public class PageWrapperTest {
 
         new PageWrapper<>(mockPage, mockHttpRequest);
 
-        mockedUriComponentsBuilder.verify(() -> UriComponentsBuilder.fromHttpUrl(URL_BASE));
+        mockedUriComponentsBuilder.verify(() -> UriComponentsBuilder.fromUriString(URL_BASE));
     }
 
     @Test

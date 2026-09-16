@@ -8,7 +8,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <parent>
 <groupId>org.springframework.boot</groupId>
 <artifactId>spring-boot-starter-parent</artifactId>
-<version>3.5.16</version>
+<version>4.1.1</version>
 <relativePath/>
 </parent>
 <properties>
@@ -21,7 +21,9 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <!-- Thymeleaf extras data attribute -->
 <thymeleaf-extras-data-attribute.version>2.0.1</thymeleaf-extras-data-attribute.version>
 <!-- Thymeleaf - Extras Spring Security -->
-<thymeleaf-extras-springsecurity6.version>3.1.2.RELEASE</thymeleaf-extras-springsecurity6.version>
+<thymeleaf-extras-springsecurity6.version>3.1.5.RELEASE</thymeleaf-extras-springsecurity6.version>
+<!-- Jakarta EL implementation (not managed by Spring Boot's BOM) -->
+<expressly.version>6.0.0</expressly.version>
 <!-- thumbnailator - Gerar Thumbnail -->
 <!-- https://github.com/coobird/thumbnailator -->
 <thumbnailator.version>0.4.8</thumbnailator.version>
@@ -34,10 +36,10 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 		<commons-beanutils.version>1.11.0</commons-beanutils.version>
 </properties>
 <dependencies>
-<!-- Spring Boot 3 -->
+<!-- Spring Boot 4 -->
 <dependency>
 <groupId>org.springframework.boot</groupId>
-<artifactId>spring-boot-starter-web</artifactId>
+<artifactId>spring-boot-starter-webmvc</artifactId>
 </dependency>
 <dependency>
 <groupId>org.springframework.boot</groupId>
@@ -77,8 +79,8 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 </dependency>
 <!-- Migracoes - Flyway -->
 <dependency>
-<groupId>org.flywaydb</groupId>
-<artifactId>flyway-core</artifactId>
+<groupId>org.springframework.boot</groupId>
+<artifactId>spring-boot-starter-flyway</artifactId>
 </dependency>
 <dependency>
 <groupId>org.flywaydb</groupId>
@@ -205,9 +207,9 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <scope>test</scope>
 </dependency>
 <dependency>
-<groupId>org.glassfish</groupId>
-<artifactId>jakarta.el</artifactId>
-<version>4.0.2</version>
+<groupId>org.glassfish.expressly</groupId>
+<artifactId>expressly</artifactId>
+<version>${expressly.version}</version>
 <scope>test</scope>
 </dependency>
 </dependencies>

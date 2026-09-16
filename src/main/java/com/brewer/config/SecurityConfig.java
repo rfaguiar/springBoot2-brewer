@@ -11,7 +11,7 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 @Configuration
 @EnableWebSecurity
 @ComponentScan(basePackageClasses = AppUserDetailsService.class)
@@ -30,7 +30,7 @@ http.authenticationProvider(authenticationProvider)
 .requestMatchers("/usuarios/**").hasAnyRole("CADASTRAR_USUARIO")
 .anyRequest().authenticated())
 .formLogin(form -> form.loginPage(LOGIN).permitAll())
-.logout(logout -> logout.logoutRequestMatcher(new AntPathRequestMatcher("/logout")))
+.logout(logout -> logout.logoutRequestMatcher(PathPatternRequestMatcher.pathPattern("/logout")))
 .sessionManagement(session -> session
 .invalidSessionUrl(LOGIN)
 .maximumSessions(1)
@@ -39,8 +39,7 @@ return http.build();
 }
 @Bean
 public DaoAuthenticationProvider authenticationProvider(AppUserDetailsService userDetailsService) {
-DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-provider.setUserDetailsService(userDetailsService);
+DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
 provider.setPasswordEncoder(passwordEncoder());
 return provider;
 }

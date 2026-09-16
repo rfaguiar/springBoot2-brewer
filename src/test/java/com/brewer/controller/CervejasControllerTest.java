@@ -121,7 +121,7 @@ public class CervejasControllerTest {
         ModelAndView result;
         try (MockedStatic<UriComponentsBuilder> mockedUriComponentsBuilder =
                      Mockito.mockStatic(UriComponentsBuilder.class, Mockito.CALLS_REAL_METHODS)) {
-            mockedUriComponentsBuilder.when(() -> UriComponentsBuilder.fromHttpUrl(ArgumentMatchers.anyString())).thenReturn(uriBuilder);
+            mockedUriComponentsBuilder.when(() -> UriComponentsBuilder.fromUriString(ArgumentMatchers.anyString())).thenReturn(uriBuilder);
             result = controller.pesquisar(mockCervejaFilter, mockPegeable, mockHttpRequest);
         }
 
