@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="pt-br" xmlns="http://www.w3.org/1999/xhtml" 
 	xmlns:th="http://www.thymeleaf.org"
-	xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+	th:fragment="layout(titulo, cabecalhoExtra, conteudo, jsExtra)">
 <head>
 	<meta charset="UTF-8"/>
 	<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1"/>
 
-	<title>Brewer</title>
+	<title th:replace="${titulo} ?: _">Brewer</title>
 
 	<link rel="stylesheet" type="text/css" th:href="@{/layout/stylesheets/vendors.min.css}"/>
 	<link rel="stylesheet" type="text/css" th:href="@{/layout/stylesheets/algaworks.min.css}"/>
@@ -16,7 +16,9 @@
 
 	<link rel="shortcut icon" th:href="@{/images/favicon.png}"/>
 	<link rel="stylesheet" type="text/css" th:href="@{/stylesheets/vendors/bootstrap-datepicker.standalone.min.css}"/>
-	
+
+	<th:block th:replace="${cabecalhoExtra} ?: _"></th:block>
+
 	<!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
 	<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
 	<!--[if lt IE 9]>
@@ -37,7 +39,7 @@
 		
 		<div th:replace="layout/fragments/MenuLateral :: layout-sidebar"></div>
 		
-		<section class="aw-layout-content  js-content" layout:fragment="conteudo"></section>
+		<section class="aw-layout-content  js-content" th:replace="${conteudo}"></section>
 			
 		<div th:replace="layout/fragments/Footer :: layout-footer"></div>	
 			
@@ -55,6 +57,6 @@
 	<script th:src="@{/javascripts/brewer.dialogo-excluir.js}"></script>
 	
 	
-	<th:block layout:fragment="javascript-extra"></th:block>
+	<th:block th:replace="${jsExtra} ?: _"></th:block>
 </body>
 </html>

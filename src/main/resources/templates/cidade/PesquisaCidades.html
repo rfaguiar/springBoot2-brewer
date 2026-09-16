@@ -1,17 +1,16 @@
 <!DOCTYPE html>
 <html lang="pt" xmlns="http://www.w3.org/1999/xhtml"
       xmlns:th="http://www.thymeleaf.org"
-      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-      layout:decorate="~{layout/LayoutPadrao}"
+      th:replace="~{layout/LayoutPadrao :: layout(titulo=~{::titulo}, cabecalhoExtra=${null}, conteudo=~{::conteudo}, jsExtra=${null})}"
       xmlns:brewer="http://brewer.algaworks.com"
       xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity4">
 	
 <head>
-	<title>Pesquisa de cidades</title>
+	<title th:fragment="titulo">Pesquisa de cidades</title>
 </head>
 
 <body>
-<section layout:fragment="conteudo">
+<section th:fragment="conteudo">
 	<div class="page-header">
 		<div class="container-fluid">
 			<div class="row">

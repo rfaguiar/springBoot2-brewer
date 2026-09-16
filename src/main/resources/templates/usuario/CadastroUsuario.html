@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
-	xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
 	xmlns:th="http://www.thymeleaf.org"
-	layout:decorate="~{layout/LayoutPadrao}"
+	th:replace="~{layout/LayoutPadrao :: layout(titulo=~{::titulo}, cabecalhoExtra=~{::cabecalhoExtra}, conteudo=~{::conteudo}, jsExtra=~{::javascript-extra})}"
 	xmlns:brewer="http://brewer.algaworks.com">
 
 <head>
-	<title>Cadastro de usuário</title>
+	<title th:fragment="titulo">Cadastro de usuário</title>
 	
-	<link rel="stylesheet" type="text/css" th:href="@{/stylesheets/vendors/bootstrap-switch.min.css}"/>
+	<th:block th:fragment="cabecalhoExtra">
+		<link rel="stylesheet" type="text/css" th:href="@{/stylesheets/vendors/bootstrap-switch.min.css}"/>
+	</th:block>
 </head>
 
-<section layout:fragment="conteudo">
+<section th:fragment="conteudo">
 
 	<div class="page-header">
 		<div class="container-fluid">
@@ -98,7 +99,7 @@
 	</div>
 </section>
 
-<th:block layout:fragment="javascript-extra">
+<th:block th:fragment="javascript-extra">
 	<script th:src="@{/javascripts/vendors/bootstrap-switch.min.js}"></script>
 	<script>
 		$('.js-status').bootstrapSwitch();

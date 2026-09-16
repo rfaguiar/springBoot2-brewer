@@ -17,7 +17,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <java.version>25</java.version>
 <!-- Thymeleaf -->
 		<thymeleaf.version>3.1.3.RELEASE</thymeleaf.version>
-		<thymeleaf-layout-dialect.version>3.3.0</thymeleaf-layout-dialect.version>
 <!-- Thymeleaf extras data attribute -->
 <thymeleaf-extras-data-attribute.version>2.0.1</thymeleaf-extras-data-attribute.version>
 <!-- Thymeleaf - Extras Spring Security -->
@@ -48,11 +47,13 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <groupId>org.springframework.boot</groupId>
 <artifactId>spring-boot-starter-thymeleaf</artifactId>
 </dependency>
-<dependency>
-<groupId>nz.net.ultraq.thymeleaf</groupId>
-<artifactId>thymeleaf-layout-dialect</artifactId>
-			<version>${thymeleaf-layout-dialect.version}</version>
-</dependency>
+<!-- nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect removed: it is implemented in Apache Groovy,
+	     whose metaprogramming runtime (groovy.lang.GroovySystem / org.codehaus.groovy.reflection.ClassInfo)
+	     is incompatible with GraalVM native-image (see docs/spring-native-migration-plan.md). All
+	     templates were converted to the plain-Thymeleaf parameterized-fragment layout pattern
+	     (th:fragment="layout(titulo, conteudo, ...)" in layout/LayoutPadrao.html and
+	     layout/LayoutSimples.html, consumed via th:replace on each page's root <html> tag), which
+	     needs no extra dialect/dependency. -->
 <dependency>
 <groupId>com.github.mxab.thymeleaf.extras</groupId>
 <artifactId>thymeleaf-extras-data-attribute</artifactId>
@@ -256,18 +257,12 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 </build>
 	<!--
 		GraalVM Native Image status (see docs/spring-native-migration-plan.md for the full
-		investigation): the 'native'/'nativeTest' profiles are already inherited from
-		spring-boot-starter-parent (mvn -Pnative spring-boot:build-image / mvn -Pnative native:compile),
-		but a real native-image build of this project currently FAILS because of Apache Groovy
-		(org.apache.groovy:groovy), a mandatory transitive dependency of
-		nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect (which IS used by this project's Thymeleaf
-		templates for layout:decorate/layout:fragment). Groovy's metaprogramming runtime
-		(groovy.lang.GroovySystem / org.codehaus.groovy.reflection.ClassInfo) keeps live thread/queue
-		state that GraalVM's image-heap analysis rejects, and forcing it to be initialized at run
-		time (initialize-at-run-time=org.codehaus.groovy,groovy,groovyjarjarasm) only moves the
-		failure to a different Groovy singleton, indicating a deeper, unresolved incompatibility
-		rather than a single missing hint. This must be resolved (most likely by replacing
-		thymeleaf-layout-dialect with plain Thymeleaf th:insert/th:replace fragments) before a
-		native image build of this application can succeed.
+		investigation history): the 'native'/'nativeTest' profiles are already inherited from
+		spring-boot-starter-parent (mvn -Pnative spring-boot:build-image / mvn -Pnative native:compile).
+		The previously identified blocker, nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect
+		(implemented in Apache Groovy, whose metaprogramming runtime is incompatible with GraalVM
+		native-image), has been removed and all Thymeleaf templates converted to the plain-Thymeleaf
+		parameterized-fragment layout pattern. See docs/spring-native-migration-plan.md for the
+		result of the next native-image build attempt.
 	-->
 </project>

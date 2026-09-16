@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html lang="pt-br" xmlns="http://www.w3.org/1999/xhtml" 
 	xmlns:th="http://www.thymeleaf.org"
-	xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-	layout:decorate="layout/LayoutPadrao"
+	th:replace="~{layout/LayoutPadrao :: layout(titulo=~{::titulo}, cabecalhoExtra=${null}, conteudo=~{::conteudo}, jsExtra=${null})}"
 	xmlns:brewer="http://brewer.cervejas.com"
 	xmlns:data="http://www.thymeleaf.org/extras/data">
 <head>
-	<title>Pesquisa de Cerveja</title>	
+	<title th:fragment="titulo">Pesquisa de Cerveja</title>	
 	
 </head>
 <body>	
-	<section layout:fragment="conteudo">
+	<section th:fragment="conteudo">
 	
 		<div class="page-header">
 			<div class="container-fluid">

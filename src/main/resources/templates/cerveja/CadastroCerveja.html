@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <html lang="pt-br" xmlns="http://www.w3.org/1999/xhtml" 
 	xmlns:th="http://www.thymeleaf.org"
-	xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-	layout:decorate="layout/LayoutPadrao"
+	th:replace="~{layout/LayoutPadrao :: layout(titulo=~{::titulo}, cabecalhoExtra=~{::cabecalhoExtra}, conteudo=~{::conteudo}, jsExtra=~{::javascript-extra})}"
 	xmlns:brewer="http://brewer.cervejas.com">
 <head>
-	<title>Cadastro de Cerveja</title>
+	<title th:fragment="titulo">Cadastro de Cerveja</title>
 	
-	<link rel="stylesheet" th:href="@{/stylesheets/vendors/upload.min.css}"/>
+	<th:block th:fragment="cabecalhoExtra">
+		<link rel="stylesheet" th:href="@{/stylesheets/vendors/upload.min.css}"/>
+	</th:block>
 </head>
 <body>	
-	<section layout:fragment="conteudo">
+	<section th:fragment="conteudo">
 	
 		<div class="page-header">
 			<div class="container-fluid">
@@ -161,7 +162,7 @@
 			<th:block th:replace="hbs/FotoCerveja"></th:block>
 	</section>		
 	
-	<th:block layout:fragment="javascript-extra">
+	<th:block th:fragment="javascript-extra">
 		<script th:src="@{/javascripts/estilo.cadastro-rapido.js}"></script>
 		<script th:src="@{/javascripts/vendors/uikit.min.js}"></script>
 		<script th:src="@{/javascripts/vendors/upload.min.js}"></script>

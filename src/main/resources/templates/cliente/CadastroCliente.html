@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html lang="pt-br" xmlns="http://www.w3.org/1999/xhtml" 
 	xmlns:th="http://www.thymeleaf.org"
-	xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
 	xmlns:data="http://www.thymeleaf.org/extras/data"
-	layout:decorate="layout/LayoutPadrao"
+	th:replace="~{layout/LayoutPadrao :: layout(titulo=~{::titulo}, cabecalhoExtra=${null}, conteudo=~{::conteudo}, jsExtra=~{::javascript-extra})}"
 	xmlns:brewer="http://brewer.cervejas.com">
 <head>
-	<title>Cadastro de Cliente</title>
+	<title th:fragment="titulo">Cadastro de Cliente</title>
 </head>
 <body>	
 
-	<section layout:fragment="conteudo">
+	<section th:fragment="conteudo">
 		
 		<div class="page-header">
 			<div class="container-fluid">
@@ -131,7 +130,7 @@
 		</div>
 	</section>
 
-	<th:block layout:fragment="javascript-extra">
+	<th:block th:fragment="javascript-extra">
 		<script th:src="@{/javascripts/cliente.mascara-cpf-cnpj.js}"></script>
 		<script th:src="@{/javascripts/cliente.combo-estado-cidade.js}"></script>
 	</th:block>

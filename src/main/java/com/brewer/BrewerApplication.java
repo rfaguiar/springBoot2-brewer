@@ -1,10 +1,13 @@
 package com.brewer;
 
+import com.brewer.config.NativeRuntimeHints;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.ImportRuntimeHints;
 
 @SpringBootApplication
+@ImportRuntimeHints(NativeRuntimeHints.class)
 public class BrewerApplication {
 
     private static ApplicationContext applicationContext;

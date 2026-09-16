@@ -1,18 +1,17 @@
 <!DOCTYPE html>
 <html lang="pt" xmlns="http://www.w3.org/1999/xhtml"
       xmlns:th="http://www.thymeleaf.org"
-      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-      layout:decorate="~{layout/LayoutPadrao}"
+      th:replace="~{layout/LayoutPadrao :: layout(titulo=~{::titulo}, cabecalhoExtra=${null}, conteudo=~{::conteudo}, jsExtra=~{::javascript-extra})}"
       xmlns:brewer="http://brewer.algaworks.com"
       xmlns:data="http://www.thymeleaf.org/extras/data"
 >
 	
 <head>
-	<title>Pesquisa de usuários</title>
+	<title th:fragment="titulo">Pesquisa de usuários</title>
 </head>
 
 <body>
-<section layout:fragment="conteudo">
+<section th:fragment="conteudo">
 	<div class="page-header">
 		<div class="container-fluid">
 			<div class="row">
@@ -132,7 +131,7 @@
     	 
 	</div>
 </section>
-<th:block layout:fragment="javascript-extra">
+<th:block th:fragment="javascript-extra">
 	<script th:src="@{/javascripts/multiselecao.js}"></script>
 </th:block>
 </body>
