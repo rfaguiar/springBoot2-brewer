@@ -8,7 +8,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <parent>
 <groupId>org.springframework.boot</groupId>
 <artifactId>spring-boot-starter-parent</artifactId>
-<version>3.5.6</version>
+<version>4.1.1</version>
 <relativePath/>
 </parent>
 <properties>
@@ -21,7 +21,9 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <!-- Thymeleaf extras data attribute -->
 <thymeleaf-extras-data-attribute.version>2.0.1</thymeleaf-extras-data-attribute.version>
 <!-- Thymeleaf - Extras Spring Security -->
-<thymeleaf-extras-springsecurity6.version>3.1.2.RELEASE</thymeleaf-extras-springsecurity6.version>
+<thymeleaf-extras-springsecurity6.version>3.1.5.RELEASE</thymeleaf-extras-springsecurity6.version>
+<!-- Jakarta EL implementation (not managed by Spring Boot's BOM) -->
+<expressly.version>6.0.0</expressly.version>
 <!-- thumbnailator - Gerar Thumbnail -->
 <!-- https://github.com/coobird/thumbnailator -->
 <thumbnailator.version>0.4.8</thumbnailator.version>
@@ -30,15 +32,14 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <!-- JasperReports -->
 		<jasperreports.version>7.0.7</jasperreports.version>
 		<jasperreports-fonts.version>7.0.7</jasperreports-fonts.version>
-		<mockito.version>5.14.2</mockito.version>
 		<!-- commons-beanutils was a transitive dependency of jasperreports 6.x; dropped in 7.x, now pinned explicitly (1.11.0 fixes CVE-2025-48734) -->
 		<commons-beanutils.version>1.11.0</commons-beanutils.version>
 </properties>
 <dependencies>
-<!-- Spring Boot 3 -->
+<!-- Spring Boot 4 -->
 <dependency>
 <groupId>org.springframework.boot</groupId>
-<artifactId>spring-boot-starter-web</artifactId>
+<artifactId>spring-boot-starter-webmvc</artifactId>
 </dependency>
 <dependency>
 <groupId>org.springframework.boot</groupId>
@@ -78,8 +79,8 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 </dependency>
 <!-- Migracoes - Flyway -->
 <dependency>
-<groupId>org.flywaydb</groupId>
-<artifactId>flyway-core</artifactId>
+<groupId>org.springframework.boot</groupId>
+<artifactId>spring-boot-starter-flyway</artifactId>
 </dependency>
 <dependency>
 <groupId>org.flywaydb</groupId>
@@ -184,7 +185,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <dependency>
 <groupId>org.mockito</groupId>
 <artifactId>mockito-core</artifactId>
-			<version>${mockito.version}</version>
 <scope>test</scope>
 </dependency>
 <dependency>
@@ -216,13 +216,12 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <dependency>
 <groupId>com.h2database</groupId>
 <artifactId>h2</artifactId>
-			<version>2.2.224</version>
 <scope>test</scope>
 </dependency>
 <dependency>
-<groupId>org.glassfish</groupId>
-<artifactId>jakarta.el</artifactId>
-<version>4.0.2</version>
+<groupId>org.glassfish.expressly</groupId>
+<artifactId>expressly</artifactId>
+<version>${expressly.version}</version>
 <scope>test</scope>
 </dependency>
 </dependencies>
@@ -231,7 +230,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>3.5.4</version>
 			</plugin>
 <plugin>
 <groupId>org.springframework.boot</groupId>
