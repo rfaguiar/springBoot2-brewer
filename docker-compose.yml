@@ -15,6 +15,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 30s
 
   app:
     build:
@@ -29,6 +30,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/brewer-springboot?useSSL=false&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
+      DB_HOST: mysql
+      DB_PORT: "3306"
       BREWER_EMAIL_USERNAME: ""
       BREWER_EMAIL_PASSWORD: ""
       BREWER_FOTO_STORAGE_LOCAL_URL_BASE: http://localhost:8080/fotos/
