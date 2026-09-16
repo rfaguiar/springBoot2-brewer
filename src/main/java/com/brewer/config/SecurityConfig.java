@@ -3,11 +3,9 @@ import com.brewer.security.AppUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -19,13 +17,9 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 public class SecurityConfig {
 private static final String LOGIN = "/login";
 @Bean
-public WebSecurityCustomizer webSecurityCustomizer() {
-return web -> web.ignoring().requestMatchers("/layout/**", "/images/**");
-}
-@Bean
-public SecurityFilterChain securityFilterChain(HttpSecurity http, DaoAuthenticationProvider authenticationProvider) throws Exception {
-http.authenticationProvider(authenticationProvider)
-.authorizeHttpRequests(auth -> auth
+public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+http.authorizeHttpRequests(auth -> auth
+.requestMatchers("/layout/**", "/images/**").permitAll()
 .requestMatchers("/cidades/novo").hasAnyRole("CADASTRAR_CIDADE")
 .requestMatchers("/usuarios/**").hasAnyRole("CADASTRAR_USUARIO")
 .anyRequest().authenticated())
@@ -36,13 +30,6 @@ http.authenticationProvider(authenticationProvider)
 .maximumSessions(1)
 .expiredUrl(LOGIN));
 return http.build();
-}
-@Bean
-public DaoAuthenticationProvider authenticationProvider(AppUserDetailsService userDetailsService) {
-DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-provider.setUserDetailsService(userDetailsService);
-provider.setPasswordEncoder(passwordEncoder());
-return provider;
 }
 @Bean
 public PasswordEncoder passwordEncoder() {
