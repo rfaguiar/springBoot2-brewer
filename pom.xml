@@ -8,7 +8,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <parent>
 <groupId>org.springframework.boot</groupId>
 <artifactId>spring-boot-starter-parent</artifactId>
-<version>3.5.6</version>
+<version>3.5.16</version>
 <relativePath/>
 </parent>
 <properties>
@@ -30,7 +30,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <!-- JasperReports -->
 		<jasperreports.version>7.0.7</jasperreports.version>
 		<jasperreports-fonts.version>7.0.7</jasperreports-fonts.version>
-		<mockito.version>5.14.2</mockito.version>
 		<!-- commons-beanutils was a transitive dependency of jasperreports 6.x; dropped in 7.x, now pinned explicitly (1.11.0 fixes CVE-2025-48734) -->
 		<commons-beanutils.version>1.11.0</commons-beanutils.version>
 </properties>
@@ -172,7 +171,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <dependency>
 <groupId>org.mockito</groupId>
 <artifactId>mockito-core</artifactId>
-			<version>${mockito.version}</version>
 <scope>test</scope>
 </dependency>
 <dependency>
@@ -204,7 +202,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <dependency>
 <groupId>com.h2database</groupId>
 <artifactId>h2</artifactId>
-			<version>2.2.224</version>
 <scope>test</scope>
 </dependency>
 <dependency>
@@ -219,7 +216,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>3.5.4</version>
 			</plugin>
 <plugin>
 <groupId>org.springframework.boot</groupId>
