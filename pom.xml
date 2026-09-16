@@ -180,6 +180,12 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <artifactId>assertj-core</artifactId>
 </dependency>
 <dependency>
+<groupId>nl.jqno.equalsverifier</groupId>
+<artifactId>equalsverifier</artifactId>
+<version>3.17.5</version>
+<scope>test</scope>
+</dependency>
+<dependency>
 <groupId>org.apache.commons</groupId>
 <artifactId>commons-lang3</artifactId>
 </dependency>

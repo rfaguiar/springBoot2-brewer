@@ -130,3 +130,43 @@ Classe de paginação usada nas views, sem teste unitário próprio (`PageWrappe
 - Mutation score global do módulo `com.brewer.*` (escopo analisado) subindo de **~61% para ≥ 80%**.
 - Nenhum pacote com score abaixo de 60% (hoje: `security`, `controller.page`, `repository.helper.venda`, `service.event.venda`).
 - Reexecutar `mvn -Dmaven.compiler.release=21 org.pitest:pitest-maven:mutationCoverage` após cada lote de testes novos e comparar `target/pit-reports/index.html` com o baseline deste documento.
+
+## 8. Resultado pós-execução do plano
+
+Após implementar os testes descritos nas seções 5.1 a 5.9 (incluindo `equalsverifier` como dependência de teste para as entidades de `com.brewer.model`), o plano foi reexecutado com `mvn -Dmaven.compiler.release=21 clean test-compile org.pitest:pitest-maven:mutationCoverage`:
+
+| Métrica | Baseline | Após execução do plano |
+|---|---:|---:|
+| Mutantes gerados | 685 | 685 |
+| Mutantes mortos (KILLED/TIMED_OUT) | 415 | **570** |
+| **Mutation score** | **~61%** | **83%** |
+| Cobertura de linha (classes mutadas) | 92% | 97% |
+| Test strength | 73% | 89% |
+| Testes executados | 159 classes | 275 testes (suíte `mvn test`) |
+
+Critérios de sucesso da seção 7 atendidos:
+- ✅ Mutation score global subiu de ~61% para **83%** (meta ≥80%).
+- ✅ Nenhum pacote do escopo analisado ficou abaixo de 60% (pior caso: `com.brewer.repository.helper.estilo` e `com.brewer.repository.helper.usuario`, ambos com 66,7%).
+
+Score por pacote após a execução (ordenado do menor para o maior):
+
+| Pacote | Score |
+|---|---:|
+| `com.brewer.repository.helper.estilo` | 66,7% |
+| `com.brewer.repository.helper.usuario` | 66,7% |
+| `com.brewer.repository.helper.cliente` | 70,0% |
+| `com.brewer.repository.helper.cidade` | 70,0% |
+| `com.brewer.model` | 73,3% |
+| `com.brewer.model.validation` | 80,0% |
+| `com.brewer.storage.local` | 81,8% |
+| `com.brewer.validation.validator` | 83,3% |
+| `com.brewer.repository.helper.cerveja` | 86,4% |
+| `com.brewer.service` | 89,5% |
+| `com.brewer.storage.s3` | 90,0% |
+| `com.brewer.session` | 90,5% |
+| `com.brewer.controller.validator` | 92,9% |
+| `com.brewer.controller.page` | 95,7% |
+| `com.brewer.controller` | 97,1% |
+| `com.brewer.controller.handler`, `com.brewer.repository.helper.venda`, `com.brewer.security`, `com.brewer.service.event.venda`, `com.brewer.storage`, `com.brewer.controller.converter` | 100% |
+
+Destaques: `com.brewer.security` (13% → 100%), `com.brewer.controller.page` (26% → 95,7%), `com.brewer.repository.helper.venda` (35% → 100%) e `com.brewer.service.event.venda` (33% → 100%) — todos os pacotes 🔴 críticos do baseline saíram do estado crítico. `com.brewer.model` (maior volume de mutantes, 292) subiu de 51% para 73,3%; os repositórios `helper.*Impl` restantes (estilo, usuário, cliente, cidade) ficaram na faixa 66–70%, ainda com oportunidade de melhoria em um próximo ciclo, mas acima do piso de 60% exigido.

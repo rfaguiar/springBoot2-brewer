@@ -57,6 +57,20 @@ public class VendaValidatorTest {
     }
 
     @Test
+    public void testeMetodoValidateQuandoValorTotalZeroNaoDeveRejeitarPorValorNegativo() {
+        venda.setValorTotal(BigDecimal.ZERO);
+        validator.validate(venda, mockErrors);
+        Mockito.verify(mockErrors, Mockito.never()).reject("", "Valor total não pode ser negativo");
+    }
+
+    @Test
+    public void testeMetodoValidateQuandoValorTotalMenorQueZeroPorUmCentavoDeveRejeitarComMsgAdequada() {
+        venda.setValorTotal(new BigDecimal("-0.01"));
+        validator.validate(venda, mockErrors);
+        Mockito.verify(mockErrors).reject("", "Valor total não pode ser negativo");
+    }
+
+    @Test
     public void testeMetodoValidateQuandoVendaSemItensDeveRejeitarComMsgAdequada() {
         venda.setItens(new ArrayList<>());
         validator.validate(venda, mockErrors);

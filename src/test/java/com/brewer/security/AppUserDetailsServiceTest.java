@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
 
 public class AppUserDetailsServiceTest {
@@ -47,6 +48,21 @@ public class AppUserDetailsServiceTest {
         UserDetails result = this.service.loadUserByUsername("email@teste.com");
 
         assertNotNull(result);
+    }
+
+    @Test
+    public void testeMetodoLoadUserByUsernameDevePopularAuthoritiesComPermissoesRetornadasPeloRepositorio() {
+        Usuario usuario = UsuarioBuilder.criarUsuario();
+        List<String> permissoes = List.of("role_cadastrar_cerveja", "ROLE_CADASTRAR_USUARIO");
+
+        Mockito.when(mockUsuariosRepo.porEmailEAtivo("email@teste.com")).thenReturn(Optional.of(usuario));
+        Mockito.when(mockUsuariosRepo.permissoes(usuario)).thenReturn(permissoes);
+
+        UserDetails result = this.service.loadUserByUsername("email@teste.com");
+
+        assertThat(result.getAuthorities())
+                .extracting("authority")
+                .containsExactlyInAnyOrder("ROLE_CADASTRAR_CERVEJA", "ROLE_CADASTRAR_USUARIO");
     }
 
     @Test(expected = UsernameNotFoundException.class)
