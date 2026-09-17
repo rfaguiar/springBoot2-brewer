@@ -122,20 +122,16 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 		     initialize-at-run-time / initialize-at-build-time workarounds for a dependency that is dead
 		     weight. See docs/spring-native-migration-plan.md (section 8, Fase 3) for details. -->
 		
-<!-- EhCache -->
+<!-- Caffeine cache (replaces EhCache/JSR-107; see docs/spring-native-migration-plan.md,
+	     section 8, for why EhCache was dropped: its statistics subsystem
+	     (org.ehcache.shadow.org.terracotta.*) relies on a deep, effectively open-ended chain of
+	     runtime reflection over its internal store/context-tree classes that GraalVM
+	     native-image cannot resolve without an impractical number of hints. Caffeine has no such
+	     subsystem and is Spring Boot's own recommended/officially-supported cache provider,
+	     with first-class native-image support out of the box (no extra hints needed here). -->
 <dependency>
-<groupId>org.ehcache</groupId>
-<artifactId>ehcache</artifactId>
-<exclusions>
-<exclusion>
-<groupId>org.glassfish.jaxb</groupId>
-<artifactId>jaxb-runtime</artifactId>
-</exclusion>
-<exclusion>
-<groupId>javax.xml.bind</groupId>
-<artifactId>jaxb-api</artifactId>
-</exclusion>
-</exclusions>
+<groupId>com.github.ben-manes.caffeine</groupId>
+<artifactId>caffeine</artifactId>
 </dependency>
 <!-- JAXB (Jakarta namespace) - required by Hibernate to parse META-INF/orm.xml on Java 11+ -->
 <dependency>
@@ -145,12 +141,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <dependency>
 <groupId>org.glassfish.jaxb</groupId>
 <artifactId>jaxb-runtime</artifactId>
-</dependency>
-<!-- JCache -->
-<dependency>
-<groupId>javax.cache</groupId>
-<artifactId>cache-api</artifactId>
-<version>1.1.1</version>
 </dependency>
 <!-- JUnit -->
 <dependency>
