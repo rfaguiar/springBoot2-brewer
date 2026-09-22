@@ -15,7 +15,7 @@ engenheiro(a) de software — cada tópico é independente e pode ser lido isola
 | # | Documento | O que você encontra lá |
 |---|---|---|
 | 01 | [Visão Geral e Propósito](docs/01-visao-geral-e-proposito.md) | O que é o sistema, domínio de negócio e motivação do projeto |
-| 02 | [Arquitetura](docs/02-arquitetura.md) | Camadas MVC, padrões de projeto aplicados e fluxo de uma requisição |
+| 02 | [Arquitetura](docs/02-arquitetura.md) | Camadas MVC, padrões de projeto aplicados, fluxo de uma requisição e [Modelo C4 completo](docs/c4-model/README.md) (Contexto, Contêineres, Componentes, Dinâmico) |
 | 03 | [Estrutura de Pastas](docs/03-estrutura-de-pastas.md) | Mapa completo dos pacotes Java e recursos do projeto |
 | 04 | [Catálogo Tecnológico](docs/04-catalogo-tecnologico.md) | Toda dependência do `pom.xml`, versão, categoria e para que serve |
 | 05 | [Features](docs/05-features.md) | Funcionalidades de negócio por módulo (cervejas, clientes, vendas, RBAC, dashboard...) |

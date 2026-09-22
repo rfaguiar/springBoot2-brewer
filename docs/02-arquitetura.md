@@ -73,6 +73,17 @@ Camadas transversais (cross-cutting) usadas em todo o fluxo: **Security** (auten
 
 Consulte o detalhamento em [06 · Segurança](06-seguranca.md).
 
+## Modelo C4
+
+A visão em camadas acima é complementada por um **modelo C4 completo** (Contexto, Contêineres,
+Componentes e Dinâmico), com diagramas Mermaid extraídos por varredura direta do código-fonte:
+
+- [Modelo C4 — índice](c4-model/README.md)
+- [01 · Diagrama de Contexto](c4-model/01-contexto.md) — Brewer, o colaborador e os sistemas externos (SendGrid, Amazon S3)
+- [02 · Diagrama de Contêineres](c4-model/02-containers.md) — Aplicação Web, Banco de Dados (MySQL) e Armazenamento Local
+- [03 · Diagrama de Componentes](c4-model/03-componentes.md) — pacotes `com.brewer.*` agrupados por responsabilidade
+- [04 · Diagrama Dinâmico](c4-model/04-dinamico.md) — passo a passo da emissão de uma venda
+
 ## Próxima leitura
 
 - [03 · Estrutura de Pastas](03-estrutura-de-pastas.md)
