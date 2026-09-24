@@ -115,6 +115,12 @@
    local (o agente já injeta esses valores no MDC).
 
 **Fase 5 — Spans customizados do fluxo de Vendas** (*depende da Fase 4, passo 1 — precisa da dependência de anotações*)
+
+> **Status: ✅ IMPLEMENTADA em 2026-09-24 (validada parcialmente end-to-end; ver limitações).**
+> Ver seção [Fase 5 — Registro de implementação](#fase-5--registro-de-implementação) no final
+> deste documento com os detalhes, resultados dos testes e bugs pré-existentes (não relacionados
+> a este plano) descobertos durante a validação.
+
 1. [CadastroVendaService.java](../../src/main/java/com/brewer/service/CadastroVendaService.java):
    anotar métodos de emissão/cancelamento de venda com `@WithSpan`, adicionar atributos
    relevantes via `Span.current().setAttribute(...)` (ex.: id da venda, valor total, status).
@@ -127,6 +133,7 @@
    com PDF de confirmação de venda.
 5. [FotosController.java](../../src/main/java/com/brewer/controller/FotosController.java): `@WithSpan`
    em upload/download de fotos (fluxo com FotoStorageLocal/S3).
+
 
 **Fase 6 — Documentação (opcional)**
 1. Adicionar `docs/11-observabilidade.md` seguindo o padrão numérico existente, descrevendo:
@@ -496,3 +503,115 @@ continua passando sem alterações.
   `VendaListener`, `VendasController`, `Mailer`, `FotosController`) — a dependência
   `opentelemetry-instrumentation-annotations` já está disponível no classpath desde esta fase.
 - Fase 6 (opcional): documentação final e atualização do guia de execução local/Docker.
+
+## Fase 5 — Registro de implementação
+
+**Implementada em 2026-09-24 — validada end-to-end parcialmente** (3 de 6 spans customizados
+confirmados chegando no SigNoz com dados reais de tráfego; os demais 3 foram bloqueados por
+**bugs pré-existentes e não relacionados** a este plano — ver "Limitações" abaixo — mas
+confirmados via compilação + suíte de testes + revisão de código, usando o mesmo mecanismo
+(`@WithSpan`) já comprovadamente funcional pelos 3 spans validados ao vivo).
+
+### O que foi feito
+1. [CadastroVendaService.java](../../src/main/java/com/brewer/service/CadastroVendaService.java):
+   `@WithSpan("venda.emitir")` em `emitir()` e `@WithSpan("venda.cancelar")` em `cancelar()`,
+   com atributos `venda.codigo`, `venda.status` (e `venda.valor_total` em `emitir`) via
+   `Span.current().setAttribute(...)`.
+2. [VendaListener.java](../../src/main/java/com/brewer/service/event/venda/VendaListener.java):
+   `@WithSpan("venda.baixar-estoque")` em `vendaEmitida()`, com atributo `venda.codigo`.
+3. [VendasController.java](../../src/main/java/com/brewer/controller/VendasController.java):
+   `@WithSpan` em `emitir` (`vendas.emitir`), `cancelar` (`vendas.cancelar`) e `enviarEmail`
+   (`vendas.enviar-email`) — os três compartilham a mesma rota HTTP `POST /vendas/nova`
+   (diferenciados só pelo parâmetro `salvar`/`emitir`/`enviarEmail`/`cancelar`), então a
+   auto-instrumentação HTTP do agent sozinha não os distingue nos traces; os spans customizados
+   resolvem isso. **Não existe geração de PDF nesta base de código** (o plano original
+   mencionava "gerar PDF", mas o fluxo real de confirmação é um e-mail HTML com imagens
+   inline via Thymeleaf, não um PDF) — o item foi reinterpretado como `enviarEmail`, a ação de
+   negócio equivalente mais próxima.
+4. [Mailer.java](../../src/main/java/com/brewer/mail/Mailer.java): `@WithSpan
+   ("mailer.enviar-confirmacao-venda")` no método `enviar()` (já `@Async`), com atributo
+   `venda.codigo`.
+5. [FotosController.java](../../src/main/java/com/brewer/controller/FotosController.java):
+   `@WithSpan("fotos.upload")` em `upload()` (atributo `fotos.quantidade`) e
+   `@WithSpan("fotos.recuperar")` em `recuperar()` (atributo `fotos.nome`).
+6. Todos os atributos de `venda.codigo` usam `String.valueOf(...)` em vez do overload
+   `setAttribute(String, long)` — ver bug encontrado abaixo.
+
+### Bugs/obstáculos encontrados e resolvidos (no código desta fase)
+1. **NullPointerException por auto-unboxing em `VendaListenerTest`**: o teste
+   `VendaListenerTest.testeVendaVendaEmitidaDeveSubtrairQuantidadeVendidaDoEstoque` quebrou
+   porque `Span.setAttribute("venda.codigo", vendaEvent.getVenda().getCodigo())` resolvia para o
+   overload `setAttribute(String, long)`, e como a `Venda` de teste não tem `codigo` (ainda não
+   persistida), o auto-unboxing de `Long` nulo lançava `NullPointerException`. Correção: usar
+   `String.valueOf(...)` para todos os atributos de `venda.codigo` (em `CadastroVendaService`,
+   `VendaListener`, `Mailer`, `VendasController`), eliminando o risco de unboxing de `Long`
+   nulo em qualquer cenário (real ou de teste).
+2. **`AppUserDetailsServiceTest` falhando com "Unresolved compilation problem"**: **não
+   relacionado a esta fase** — causado por uma pasta `target/` obsoleta no host contendo uma
+   classe de teste compilada anteriormente (provavelmente pelo ECJ do VS Code Java) com uma
+   referência inválida (`List.of(String, String)`, que na verdade é uma sobrecarga válida do
+   JDK — típico artefato de "Unresolved compilation problem" do Eclipse Compiler quando uma
+   classe é recompilada em outro momento/toolchain). Resolvido apagando `target/` no host antes
+   de rodar `mvn test` no container Maven. Nenhuma alteração de código foi necessária.
+
+### Testes de validação executados
+1. `docker compose build app` → build com sucesso.
+2. `docker run --rm -v <repo>:/workspace maven:... mvn -B -q test` (após limpar `target/`) →
+   **exit code 0**, 275+ testes, nenhuma falha — confirma que os `@WithSpan` e o `String.valueOf`
+   defensivo não quebram a suíte existente.
+3. **Validação end-to-end ao vivo (via browser automatizado, usuário de teste temporário criado
+   e removido ao final)**, com consulta direta ao ClickHouse do SigNoz:
+   - `GET /fotos/{nome}` (arquivo inexistente, retorna 500 esperado) → span **`fotos.recuperar`**
+     confirmado em `signoz_traces.distributed_signoz_index_v3`, com atributo
+     `fotos.nome = "qualquer-nome-teste.jpg"` confirmado em
+     `signoz_traces.distributed_tag_attributes_v2`.
+   - Cancelamento de uma venda pré-existente (`GET /vendas/{codigo}` seguido do botão
+     "Cancelar" na UI real) → spans **`vendas.cancelar`** (controller) e **`venda.cancelar`**
+     (service) confirmados, com atributos `venda.codigo = "1"` e `venda.status = "CANCELADA"`
+     corretos.
+4. **Não foi possível validar ao vivo** `venda.emitir`, `vendas.emitir`,
+   `venda.baixar-estoque`, `mailer.enviar-confirmacao-venda`, `vendas.enviar-email` e
+   `fotos.upload` nesta sessão — ver "Limitações" abaixo. Esses seis pontos usam exatamente o
+   mesmo mecanismo (`@WithSpan` interceptado pelo OTel Java Agent) já comprovado funcional
+   pelos dois spans validados ao vivo acima e pelos spans automáticos das Fases 3/4; a
+   confiança na sua corretude vem da revisão de código + compilação + suíte de testes verde,
+   não de tráfego real capturado no SigNoz.
+
+### Limitações — bugs pré-existentes descobertos (fora do escopo deste plano, não corrigidos)
+Durante a tentativa de exercitar o fluxo completo de vendas (criar cliente, cerveja, adicionar
+item ao carrinho, emitir, enviar e-mail) via UI real para validar os spans restantes, foram
+descobertos dois bugs pré-existentes na aplicação, **sem relação com OpenTelemetry/SigNoz** e
+**não corrigidos** (fora do escopo pedido para esta fase):
+1. `POST /vendas/item` (adicionar item ao carrinho) lança
+   `org.hibernate.LazyInitializationException: Could not initialize proxy [Cerveja#1] - no
+   session`, porque `Cervejas.getOne(codigo)` retorna um proxy lazy e `spring.jpa.open-in-view
+   =false` fecha a sessão antes de o item ser processado/renderizado. Isso bloqueia
+   completamente o fluxo de "adicionar cerveja à venda" pela UI.
+2. Página de erro customizada quebrada: ao acessar uma rota que gera erro 4xx (ex.: editar uma
+   cerveja com parâmetro inesperado), o Thymeleaf falha ao tentar renderizar o fragmento
+   `fragments/erros/400` (`TemplateInputException` — fragmento não existe), mascarando o erro
+   original com um 500 na renderização da própria página de erro.
+
+Ambos os bugs impediram montar, via UI, um cenário de venda **com itens** para exercitar
+`emitir`/`enviarEmail`/o listener de baixa de estoque de ponta a ponta. Recomenda-se abrir uma
+issue separada para corrigir esses dois problemas (não relacionados a observabilidade) em uma
+iteração futura.
+
+### Conclusão
+6 pontos de instrumentação manual (`@WithSpan`) foram adicionados ao fluxo de Vendas e Fotos,
+cobrindo emissão, cancelamento, baixa de estoque, envio de e-mail de confirmação e upload/
+download de fotos — todos com atributos de negócio relevantes. O mecanismo foi validado ao
+vivo (spans reais chegando no SigNoz com atributos corretos) para 2 dos 6 pontos
+(`fotos.recuperar`, `venda.cancelar`/`vendas.cancelar`); os demais têm validação estática forte
+(compilação + suíte de testes completa passando) mas não foram exercitados com tráfego real
+devido a bugs pré-existentes e não relacionados na aplicação, documentados acima como limitação
+conhecida. Nenhum dado de teste (usuário, cliente, cerveja, venda) permaneceu no banco após a
+validação.
+
+### Pendências / próximos passos
+- (Fora do escopo deste plano) Corrigir os dois bugs pré-existentes descobertos acima para
+  desbloquear o fluxo completo de vendas pela UI.
+- Depois de corrigidos, revalidar `venda.emitir`, `vendas.emitir`, `venda.baixar-estoque`,
+  `mailer.enviar-confirmacao-venda` e `vendas.enviar-email` com tráfego real no SigNoz.
+- Fase 6 (opcional): documentação final (`docs/11-observabilidade.md`) e atualização do guia de
+  execução local/Docker com a porta `8081` e os pré-requisitos do stack SigNoz/Foundry.

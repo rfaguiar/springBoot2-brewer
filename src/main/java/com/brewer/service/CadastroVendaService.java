@@ -5,6 +5,8 @@ import com.brewer.model.Venda;
 import com.brewer.repository.Vendas;
 import com.brewer.service.event.venda.VendaEvent;
 import com.brewer.service.exception.VendaException;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -46,14 +48,21 @@ public class CadastroVendaService {
 		return vendas.saveAndFlush(venda);
 	}
 
+	@WithSpan("venda.emitir")
 	@Transactional
 	public void emitir(Venda venda) {
 		venda.setStatus(StatusVenda.EMITIDA);
 		salvar(venda);
-		
+
+		Span span = Span.current();
+		span.setAttribute("venda.codigo", String.valueOf(venda.getCodigo()));
+		span.setAttribute("venda.valor_total", venda.getValorTotal().doubleValue());
+		span.setAttribute("venda.status", venda.getStatus().name());
+
 		publish.publishEvent(new VendaEvent(venda));
 	}
 	
+	@WithSpan("venda.cancelar")
 	@PreAuthorize("#venda.usuario == principal.usuario or hasRole('CANCELAR_VENDA')")
 	@Transactional
 	public void cancelar(Venda venda) {
@@ -61,6 +70,10 @@ public class CadastroVendaService {
 		
 		vendaExistente.setStatus(StatusVenda.CANCELADA);
 		vendas.save(vendaExistente);
+
+		Span span = Span.current();
+		span.setAttribute("venda.codigo", String.valueOf(vendaExistente.getCodigo()));
+		span.setAttribute("venda.status", vendaExistente.getStatus().name());
 	}
 
 }

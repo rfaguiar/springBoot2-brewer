@@ -12,6 +12,8 @@ import com.brewer.repository.filter.VendaFilter;
 import com.brewer.security.UsuarioSistema;
 import com.brewer.service.CadastroVendaService;
 import com.brewer.session.TabelasItensSession;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,6 +85,7 @@ public class VendasController {
 		return new ModelAndView(REDIRECT_VENDAS_NOVA);
 	}
 
+	@WithSpan("vendas.emitir")
 	@PostMapping(value = "/nova", params = "emitir")
 	public ModelAndView emitir(Venda venda, BindingResult result, RedirectAttributes attributes, @AuthenticationPrincipal UsuarioSistema usuarioSistema) {
 		validarVenda(venda, result);
@@ -97,6 +100,7 @@ public class VendasController {
 		return new ModelAndView(REDIRECT_VENDAS_NOVA);
 	}
 	
+	@WithSpan("vendas.enviar-email")
 	@PostMapping(value = "/nova", params = "enviarEmail")
 	public ModelAndView enviarEmail(Venda venda, BindingResult result, RedirectAttributes attributes, @AuthenticationPrincipal UsuarioSistema usuarioSistema) {
 		validarVenda(venda, result);
@@ -107,6 +111,7 @@ public class VendasController {
 		venda.setUsuario(usuarioSistema.getUsuario());
 		
 		venda = cadastroVendaService.salvar(venda);
+		Span.current().setAttribute("venda.codigo", String.valueOf(venda.getCodigo()));
 		
 		mailer.enviar(venda);
         logger.debug("####### Logo depois da chama do metodo enviar.");
@@ -163,6 +168,7 @@ public class VendasController {
 		return mv;
 	}
 	
+	@WithSpan("vendas.cancelar")
 	@PostMapping(value = "/nova", params = "cancelar")
 	public ModelAndView cancelar(Venda venda, BindingResult result, RedirectAttributes attributes, @AuthenticationPrincipal UsuarioSistema usuarioSistema) {
 		try {

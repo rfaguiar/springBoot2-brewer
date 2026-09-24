@@ -4,6 +4,8 @@ import com.brewer.model.Cerveja;
 import com.brewer.model.ItemVenda;
 import com.brewer.model.Venda;
 import com.brewer.storage.FotoStorage;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +40,10 @@ public class Mailer {
 	private FotoStorage fotoStorage;
 
 	@Async
+	@WithSpan("mailer.enviar-confirmacao-venda")
 	public void enviar(Venda venda){
+		Span.current().setAttribute("venda.codigo", String.valueOf(venda.getCodigo()));
+
 		Context context = new Context(new Locale("pt", "BR"));
 		context.setVariable("venda", venda);
 		context.setVariable("logo", "logo");
