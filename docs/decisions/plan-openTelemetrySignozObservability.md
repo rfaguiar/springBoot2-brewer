@@ -58,6 +58,12 @@
    (não Docker Desktop) — anotar isso claramente na documentação/README.
 
 **Fase 2 — Conectar docker-compose.yml da aplicação à rede do SigNoz** (*depende da Fase 1, passo 4*)
+
+> **Status: ✅ IMPLEMENTADA E VALIDADA em 2026-09-24** (sem o `JAVA_OPTS`/agent, adiado para a
+> Fase 3 — decisão do usuário). Ver seção
+> [Fase 2 — Registro de implementação](#fase-2--registro-de-implementação) no final deste
+> documento com os detalhes e resultados dos testes.
+
 1. Em [docker-compose.yml](../../docker-compose.yml): declarar a rede externa
    `brewer-observability` (`external: true`) e anexar o serviço `app` a ela, mantendo a rede
    default (para `mysql`).
@@ -234,3 +240,80 @@
   (`cd observability && ..\.tools\foundry_windows_amd64\bin\foundryctl.exe cast -f casting.yaml`,
   ou simplesmente `docker compose -f observability/pours/deployment/compose.yaml up -d` se os
   arquivos já tiverem sido gerados).
+
+## Fase 2 — Registro de implementação
+
+**Concluída e validada em 2026-09-24.** Escopo: apenas rede + variáveis de ambiente do
+`docker-compose.yml` da aplicação. **`JAVA_OPTS`/`-javaagent` foi deliberadamente omitido**
+nesta fase (decisão do usuário) porque o `opentelemetry-javaagent.jar` só é empacotado na
+Fase 3 (Dockerfile), que não fazia parte do escopo pedido — setar o agente sem o jar presente
+quebraria a subida do container `app`.
+
+### O que foi feito
+1. Rede externa `brewer-observability` criada manualmente (já existia da Fase 1, recriada
+   nesta sessão com `docker network create brewer-observability`).
+2. Em [docker-compose.yml](../../docker-compose.yml), serviço `app`:
+   - adicionada seção `networks:` com `default` (mantém acesso ao `mysql`) + `brewer-observability`
+     (acesso ao `ingester` do SigNoz);
+   - adicionado bloco `networks:` de topo declarando `brewer-observability` como `external: true`;
+   - adicionadas variáveis: `OTEL_EXPORTER_OTLP_ENDPOINT=http://ingester:4317`,
+     `OTEL_EXPORTER_OTLP_PROTOCOL=grpc`, `OTEL_SERVICE_NAME=brewer-springboot`,
+     `OTEL_RESOURCE_ATTRIBUTES=service.namespace=brewer,deployment.environment=docker`,
+     `OTEL_TRACES_EXPORTER=otlp`, `OTEL_METRICS_EXPORTER=otlp`, `OTEL_LOGS_EXPORTER=otlp`,
+     `OTEL_INSTRUMENTATION_LOGBACK_APPENDER_ENABLED=true`,
+     `MANAGEMENT_OTLP_METRICS_EXPORT_URL=http://ingester:4318/v1/metrics`;
+   - **não** foi adicionado `JAVA_OPTS=-javaagent:...` (ver acima).
+3. Publicação de porta do serviço `app` alterada de `8080:8080` para **`8081:8080`** no host
+   (motivo: conflito de porta — ver bug 2 abaixo) e `BREWER_FOTO_STORAGE_LOCAL_URL_BASE`
+   atualizada para `http://localhost:8081/fotos/` para continuar consistente com a nova porta
+   publicada.
+4. Criado [.gitattributes](../../.gitattributes) na raiz forçando `eol=lf` (geral e para
+   `*.sh`) e normalizado [docker-entrypoint.sh](../../docker-entrypoint.sh) para terminações de
+   linha LF (ver bug 1 abaixo).
+5. Stack completo testado de ponta a ponta: `docker network create` → `foundryctl cast`
+   (SigNoz) → `docker compose up --build -d` (mysql + app), ambos os stacks simultâneos.
+
+### Bugs/obstáculos encontrados e resolvidos
+1. **`brewer-app` em crash loop (`Restarting (255)`), log `exec /app/docker-entrypoint.sh: no
+   such file or directory`**: o arquivo estava com terminações de linha CRLF no checkout local
+   (Windows/`core.autocrlf`), então o shebang `#!/bin/sh\r` não é reconhecido pelo kernel Linux
+   do container (procura um interpretador chamado `/bin/sh\r`, que não existe — daí o erro
+   enganoso de "arquivo não encontrado" em vez de erro de sintaxe). Correção: normalizado o
+   arquivo para LF e adicionado `.gitattributes` (`* text=auto eol=lf`, `*.sh text eol=lf`)
+   para evitar recorrência em outras máquinas Windows.
+2. **Conflito de porta 8080 no host**: o serviço `signoz-signoz-0` (UI/API do SigNoz, gerado
+   pelo Foundry na Fase 1) já publica `8080:8080` no host. O `docker-compose.yml` da aplicação
+   também publicava `8080:8080`, o que impediria os dois stacks de rodarem simultaneamente
+   (exigido para validar a Fase 2 de ponta a ponta). Correção: publicado o serviço `app` em
+   `8081:8080` e ajustada a env var `BREWER_FOTO_STORAGE_LOCAL_URL_BASE` de acordo.
+
+### Testes de validação executados (todos com resultado ✅)
+1. `docker compose up --build -d`: build da imagem e subida de `brewer-mysql` (healthy) e
+   `brewer-app` sem crash loop, com logs completos de migração Flyway e
+   `"Started BrewerApplication in 20.541 seconds"`.
+2. `docker inspect brewer-app` confirmou o container conectado a **duas redes**:
+   `springboot2-brewer_default` (acesso ao `mysql`) e `brewer-observability` (acesso ao
+   `ingester` do SigNoz).
+3. Requisição HTTP `http://localhost:8081/` → **302** (redirect de login, comportamento normal
+   da aplicação); simultaneamente `http://localhost:8080/api/v1/health` (UI do SigNoz) →
+   **200** — confirma ausência de conflito de porta entre os dois stacks.
+4. De dentro do container `brewer-app` (`docker exec`): `getent hosts ingester` resolveu para
+   `172.19.0.2` (IP da rede `brewer-observability`); `nc -zv ingester 4317` → **conexão aberta**
+   (porta gRPC); requisição HTTP OTLP (`POST /v1/traces` com corpo `{}`) para
+   `http://ingester:4318/v1/traces` → resposta **`{"partialSuccess":{}}`**, confirmando que o
+   coletor aceita e processa requisições OTLP vindas do container da aplicação.
+5. `docker exec brewer-app env | grep OTEL_` confirmou todas as 8 variáveis OTEL e a
+   `MANAGEMENT_OTLP_METRICS_EXPORT_URL` presentes e com os valores corretos dentro do container
+   em execução.
+
+### Pendências para a próxima fase (Fase 3)
+- O app ainda **não emite telemetria de fato**: as variáveis `OTEL_*` só têm efeito quando o
+  OpenTelemetry Java Agent está no classpath (`-javaagent:...`), o que só será adicionado na
+  Fase 3 (empacotamento do jar no Dockerfile) + no `JAVA_OPTS` do `docker-compose.yml`.
+- Ao implementar a Fase 3, adicionar `JAVA_OPTS: -javaagent:/app/opentelemetry-javaagent.jar`
+  ao serviço `app` no `docker-compose.yml` (a infraestrutura de rede/env vars já está pronta) e
+  então revalidar via UI do SigNoz (`http://localhost:8080`) que o serviço `brewer-springboot`
+  aparece com traces reais.
+- Porta do serviço `app` agora é **8081** (não mais 8080) enquanto o stack do SigNoz estiver
+  ativo simultaneamente — atualizar documentação de execução local/Docker
+  ([08-execucao-local-e-docker.md](../08-execucao-local-e-docker.md)) na Fase 6.
