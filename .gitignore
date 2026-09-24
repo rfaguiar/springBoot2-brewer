@@ -6,7 +6,7 @@ Servers/*
 null/*
 .classpath
 .project
-
+.vscode/
 
 
 
@@ -14,3 +14,4 @@ null/*
 
 
 /.logs/brewer-app.log
+.vscode/settings.json
