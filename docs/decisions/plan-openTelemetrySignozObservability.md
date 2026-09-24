@@ -80,6 +80,11 @@
      (para o registry Micrometer OTLP — protocolo HTTP/protobuf na porta 4318)
 
 **Fase 3 — Empacotar o OpenTelemetry Java Agent na imagem** (*paralelo com Fase 4, depende só do Dockerfile*)
+
+> **Status: ✅ IMPLEMENTADA E VALIDADA em 2026-09-24.** Ver seção
+> [Fase 3 — Registro de implementação](#fase-3--registro-de-implementação) no final deste
+> documento com os detalhes e resultados dos testes.
+
 1. Em [Dockerfile](../../Dockerfile): adicionar etapa (no stage final, antes de `USER spring`) para
    baixar o `opentelemetry-javaagent.jar` (release oficial do repositório
    `open-telemetry/opentelemetry-java-instrumentation`, versão fixada) para `/app/opentelemetry-javaagent.jar`,
@@ -317,3 +322,80 @@ quebraria a subida do container `app`.
 - Porta do serviço `app` agora é **8081** (não mais 8080) enquanto o stack do SigNoz estiver
   ativo simultaneamente — atualizar documentação de execução local/Docker
   ([08-execucao-local-e-docker.md](../08-execucao-local-e-docker.md)) na Fase 6.
+
+## Fase 3 — Registro de implementação
+
+**Concluída e validada em 2026-09-24.** Escopo: empacotar o OTel Java Agent na imagem Docker
+e — como consequência natural, já que a Fase 2 tinha deixado isso como pendência bloqueada —
+habilitar `JAVA_OPTS=-javaagent:...` no `docker-compose.yml` para validar telemetria real de
+ponta a ponta chegando no SigNoz.
+
+### O que foi feito
+1. Em [Dockerfile](../../Dockerfile), no stage final (antes de `EXPOSE`/`USER spring`):
+   adicionado `ADD --chown=spring:spring --checksum=sha256:... https://.../opentelemetry-javaagent.jar
+   /app/opentelemetry-javaagent.jar`, baixando a **versão fixada v2.31.1** (release oficial do
+   `open-telemetry/opentelemetry-java-instrumentation`) com verificação de checksum SHA-256
+   embutida no próprio `ADD` (recurso do BuildKit, já habilitado via `# syntax=docker/dockerfile:1.7`
+   no topo do arquivo) — builds não reprodutíveis ou arquivo corrompido/adulterado fazem o
+   `docker build` falhar imediatamente.
+2. `--chown=spring:spring` garante que o jar pertença ao usuário não-root `spring` (que já
+   executa o processo via `USER spring`), sem precisar de `RUN chmod`/`chown` extra.
+3. `ENV JAVA_OPTS=""` **mantido inalterado** no Dockerfile — o agent fica presente na imagem
+   mas inerte por padrão; qualquer execução local (`mvn spring-boot:run`, que nem usa a imagem
+   Docker) ou `docker run` direto sem sobrescrever `JAVA_OPTS` continua sem overhead do agent.
+4. Em [docker-compose.yml](../../docker-compose.yml), serviço `app`: adicionada
+   `JAVA_OPTS: -javaagent:/app/opentelemetry-javaagent.jar` (pendência deixada em aberto no
+   registro da Fase 2, agora desbloqueada pelo jar estar empacotado na imagem).
+
+### Bugs/obstáculos encontrados e resolvidos
+- Nenhum bug/obstáculo nesta fase — build, subida do container e ativação do agent funcionaram
+  na primeira tentativa. O checksum SHA-256 informado (obtido da página de release oficial no
+  GitHub) validou corretamente contra o arquivo baixado pelo BuildKit.
+
+### Testes de validação executados (todos com resultado ✅)
+1. `docker compose build app`: `ADD --checksum=...` concluído sem erro de checksum (validação
+   automática de integridade do jar).
+2. `docker exec brewer-app sha256sum /app/opentelemetry-javaagent.jar` → hash **idêntico** ao
+   pinado no Dockerfile; `ls -la` confirmou owner `spring:spring`.
+3. `docker compose up -d app`: container sobe sem crash loop; logs mostram
+   `io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 2.31.1`
+   seguido do boot normal do Spring Boot e `"Started BrewerApplication in 18.591 seconds"`.
+4. Tráfego gerado contra `http://localhost:8081/` (algumas requisições HTTP) e aguardado o
+   agent exportar via OTLP gRPC para o `ingester`.
+5. **Validação direta no ClickHouse do SigNoz** (`docker exec signoz-telemetrystore-clickhouse-0-0
+   clickhouse-client --query ...`), consultando as tabelas de traces/métricas/logs — evidência
+   mais forte do que checar a UI, pois prova que os dados persistiram no backend:
+   - `signoz_traces.distributed_signoz_index_v3` (filtrando `serviceName = 'brewer-springboot'`):
+     **40 spans** recebidos, entre outros: `GET /`, `OnCommittedResponseWrapper.sendRedirect`,
+     múltiplas queries JDBC/JPA (`SELECT ... flyway_schema_history`, `information_schema`,
+     `performance_schema` etc.) — confirma auto-instrumentação HTTP (Tomcat) **e** JDBC pelo
+     agent, sem qualquer código customizado.
+   - `signoz_metrics.distributed_time_series_v4` (filtrando `labels LIKE '%brewer-springboot%'`):
+     **339 séries temporais** registradas — confirma pilar de métricas (JVM/runtime) também
+     fluindo via o agent.
+   - `signoz_logs.distributed_logs_v2` (filtrando `resources_string['service.name'] =
+     'brewer-springboot'`): **33 registros de log** — confirma pilar de logs (via
+     `OTEL_INSTRUMENTATION_LOGBACK_APPENDER_ENABLED=true`) também chegando correlacionado ao
+     `service.name` correto.
+6. Execução local sem Docker (`mvn spring-boot:run`) não foi reexecutada nesta sessão, mas
+   permanece inerentemente não afetada: o agent só é referenciado via `JAVA_OPTS` do
+   `docker-compose.yml`; o `docker-entrypoint.sh`/Dockerfile não são envolvidos na execução via
+   Maven, e `ENV JAVA_OPTS=""` seguiria sendo o único default relevante caso alguém rodasse a
+   imagem Docker sem overrides.
+
+### Conclusão
+Os três pilares de observabilidade (traces, métricas e logs) do `brewer-springboot` estão
+fluindo de ponta a ponta para o SigNoz **apenas com auto-instrumentação do agent** — nenhum
+código Java foi alterado nesta fase. As Fases 4 e 5 (actuator/micrometer-otlp e spans
+customizados `@WithSpan` no fluxo de Vendas) continuam pendentes e são aditivas/opcionais sobre
+essa base já funcional.
+
+### Pendências para as próximas fases
+- Fase 4: adicionar `spring-boot-starter-actuator`, `micrometer-registry-otlp` e
+  `opentelemetry-instrumentation-annotations` ao `pom.xml` para health/metrics via Spring e
+  suporte a `@WithSpan` manual.
+- Fase 5: instrumentar manualmente o fluxo de Vendas (`CadastroVendaService`, `VendaListener`,
+  `VendasController`, `Mailer`, `FotosController`) com `@WithSpan`.
+- Fase 6 (opcional): documentar em `docs/11-observabilidade.md` e atualizar
+  [08-execucao-local-e-docker.md](../08-execucao-local-e-docker.md) com a porta `8081` e os
+  pré-requisitos do stack SigNoz/Foundry.

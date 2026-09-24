@@ -47,6 +47,8 @@ services:
       OTEL_LOGS_EXPORTER: otlp
       OTEL_INSTRUMENTATION_LOGBACK_APPENDER_ENABLED: "true"
       MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://ingester:4318/v1/metrics
+      # Agent baixado no Dockerfile (Fase 3); default local (ENV JAVA_OPTS="") fica sem o agent.
+      JAVA_OPTS: -javaagent:/app/opentelemetry-javaagent.jar
     ports:
       - "8081:8080"
     networks:
