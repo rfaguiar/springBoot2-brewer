@@ -34,6 +34,11 @@
 ## Plano
 
 **Fase 1 — Provisionar stack SigNoz via Foundry (paralelo às demais fases, sem dependência do código Java)**
+
+> **Status: ✅ IMPLEMENTADA E VALIDADA em 2026-09-24.** Ver seção
+> [Fase 1 — Registro de implementação](#fase-1--registro-de-implementação) no final deste
+> documento com os detalhes e resultados dos testes.
+
 1. Instalar `foundryctl` (script oficial) e criar `casting.yaml` na raiz do projeto (ou em
    `observability/casting.yaml`) com `flavor: compose`, `mode: docker`.
 2. Rodar `foundryctl gauge` (valida pré-requisitos Docker) e `foundryctl forge` (gera os
@@ -157,3 +162,75 @@
   bean `OtlpMeterRegistry` manualmente.
 - Versão do `opentelemetry-javaagent.jar` deve ser fixada (não usar `latest` em produção) para
   builds reprodutíveis do Dockerfile.
+
+## Fase 1 — Registro de implementação
+
+**Concluída e validada em 2026-09-24.**
+
+### O que foi feito
+1. `foundryctl` instalado em `.tools/foundry_windows_amd64/bin/foundryctl.exe` (gitignored).
+2. Criado [observability/casting.yaml](../../observability/casting.yaml) com `flavor: compose`,
+   `mode: docker`, e um patch JSON (RFC 6902) em `deployment/compose.yaml` que:
+   - declara a rede externa `brewer-observability` (`external: true`);
+   - anexa o serviço `ingester` (coletor OTLP gerado pelo Foundry) a essa rede.
+3. Rede Docker externa criada manualmente: `docker network create brewer-observability`.
+4. Stack subido com `foundryctl cast -f casting.yaml` (redirecionando saída para arquivo, ver
+   bug de terminal abaixo). Serviços gerados: `signoz-telemetrystore-clickhouse-0-0`,
+   `signoz-metastore-postgres-0` (metastore), `signoz-telemetrykeeper-clickhousekeeper-0`,
+   `signoz-signoz-0` (UI/API, porta 8080), `signoz-telemetrystore-migrator` (job de migração,
+   one-shot), `signoz-ingester-1` (coletor OTLP, portas 4317/4318, anexado também à rede
+   `brewer-observability`). Todos os volumes de dados são nomeados/persistentes por padrão do
+   Foundry (atende à decisão de persistência).
+5. Conta admin inicial criada via UI (`http://localhost:8080/signup`) para bootstrapping do
+   SigNoz — necessária para o funcionamento do coletor (ver bug abaixo). Credencial de
+   desenvolvimento local: `admin@brewer.local` / `Brewer@Obs2026!` (apenas ambiente local,
+   sem dados sensíveis).
+
+### Bugs/obstáculos encontrados e resolvidos
+1. **Patch de rede falhava no Windows**: `target: "deployment/compose.yaml"` (barra normal)
+   retornava `"patch target ... did not match any generated material"`. Causa: o foundryctl
+   no Windows casa o target do patch usando separador de caminho nativo do SO. Correção: usar
+   barra invertida escapada — `target: "deployment\\compose.yaml"`.
+2. **Comando paralelo matou o `cast` em andamento**: ao rodar um segundo comando no mesmo
+   terminal enquanto `foundryctl cast` ainda baixava imagens, o processo foi encerrado
+   (`ExitCode -1073741510` = interrupção). Correção: nunca reusar o mesmo terminal para outro
+   comando enquanto um `cast`/`docker compose` está em execução; redirecionar a saída do `cast`
+   para arquivo (`*> cast-output.log`) evita também problemas de renderização da barra de
+   progresso no PowerShell.
+3. **OTLP receiver (4317/4318) não respondia (`Connection refused` via rede, `Empty reply`
+   via host) mesmo com os containers "healthy"**: o `ingester` sobe inicialmente com uma
+   config mínima (só extensions `pprof`/`health_check`) e depende do backend `signoz-signoz-0`
+   entregar a config real (com os receivers OTLP) via protocolo OpAMP. Isso só acontece depois
+   que existe uma organização no SigNoz. Nos logs do `signoz-signoz-0` aparecia
+   `"failed to find or create agent" ... "cannot create agent without orgId"` repetidamente.
+   Correção: completar o signup inicial em `http://localhost:8080` (cria a primeira
+   organização/conta admin). Após isso, os logs do `ingester` mostraram
+   `"Config has changed, reloading"` seguido de `"Starting GRPC server ... endpoint [::]:4317"`
+   e `"Starting HTTP server ... endpoint [::]:4318"`.
+4. **ClickHouse Keeper no Docker Desktop/Windows**: o risco documentado oficialmente pelo
+   SigNoz (crash loop/segfault) **não se materializou** — o container rodou de forma estável
+   por mais de 3 horas durante os testes. Risco permanece documentado para monitoramento, mas
+   não bloqueou a Fase 1.
+
+### Testes de validação executados (todos com resultado ✅)
+1. `docker ps -a` — todos os containers de longa duração em estado `healthy`; jobs one-shot
+   (`clickhouse-user-scripts`, `telemetrystore-migrator`) terminaram com `Exited (0)`.
+2. Rede externa `brewer-observability` confirmada via `docker network inspect`: contém o
+   container `signoz-ingester-1` com IP dedicado nessa rede.
+3. Conectividade cross-network simulando o container `app` (que será anexado à mesma rede
+   externa na Fase 2): `docker run --rm --network brewer-observability curlimages/curl ...`
+   contra `http://ingester:4318/v1/traces` → **HTTP 200**; TCP connect em `ingester:4317`
+   (gRPC) → conexão estabelecida com sucesso.
+4. UI do SigNoz acessível em `http://localhost:8080`, conta criada, workspace ativo
+   (`"Your workspace is ready"`).
+5. Estabilidade: containers seguiram saudáveis por 3h+ sem reinícios/crash loops.
+
+### Pendências para as próximas fases
+- O nome do serviço/hostname a usar em `OTEL_EXPORTER_OTLP_ENDPOINT` na Fase 2 é `ingester`
+  (nome do serviço Compose; funciona como hostname DNS dentro da rede `brewer-observability`) —
+  não é necessário usar o alias `signoz-ingester` (esse alias só vale dentro da rede interna
+  `signoz-network`).
+- Ao reiniciar a máquina/Docker, os containers do SigNoz precisam ser religados
+  (`cd observability && ..\.tools\foundry_windows_amd64\bin\foundryctl.exe cast -f casting.yaml`,
+  ou simplesmente `docker compose -f observability/pours/deployment/compose.yaml up -d` se os
+  arquivos já tiverem sido gerados).

@@ -15,3 +15,9 @@ null/*
 
 /.logs/brewer-app.log
 .vscode/settings.json
+
+# Ferramentas e stack de observabilidade (SigNoz via Foundry)
+/.tools/
+/observability/pours/
+/observability/casting.yaml.lock
+/observability/cast-output.log
