@@ -94,6 +94,11 @@
    local (`mvn spring-boot:run`) sem overhead do agent.
 
 **Fase 4 — Dependências e config Spring para métricas/health (pilar métricas + health)** (*paralelo com Fase 3*)
+
+> **Status: ✅ IMPLEMENTADA E VALIDADA em 2026-09-24.** Ver seção
+> [Fase 4 — Registro de implementação](#fase-4--registro-de-implementação) no final deste
+> documento com os detalhes e resultados dos testes.
+
 1. [pom.xml](../../pom.xml): adicionar
    - `org.springframework.boot:spring-boot-starter-actuator`
    - `io.micrometer:micrometer-registry-otlp`
@@ -399,3 +404,95 @@ essa base já funcional.
 - Fase 6 (opcional): documentar em `docs/11-observabilidade.md` e atualizar
   [08-execucao-local-e-docker.md](../08-execucao-local-e-docker.md) com a porta `8081` e os
   pré-requisitos do stack SigNoz/Foundry.
+
+## Fase 4 — Registro de implementação
+
+**Concluída e validada em 2026-09-24.** Escopo: dependências Maven de actuator/Micrometer-OTLP/
+anotações OTel + propriedades Spring para health/metrics, incluindo o item opcional de
+correlação `trace_id`/`span_id` no log de console.
+
+### O que foi feito
+1. Em [pom.xml](../../pom.xml): adicionadas
+   - `org.springframework.boot:spring-boot-starter-actuator` (versão gerenciada pelo
+     `spring-boot-starter-parent` 4.1.1);
+   - `io.micrometer:micrometer-registry-otlp` (versão gerenciada pelo BOM do Spring Boot —
+     resolveu para **1.17.1**);
+   - `io.opentelemetry.instrumentation:opentelemetry-instrumentation-annotations`, com versão
+     **fixada explicitamente em `2.31.1`** via nova propriedade
+     `opentelemetry-instrumentation-annotations.version` — escolhida para ficar alinhada à
+     versão do `opentelemetry-javaagent.jar` pinada no Dockerfile (Fase 3), já que os dois
+     artefatos são publicados em lockstep pelo mesmo projeto upstream.
+2. Em [application.properties](../../src/main/resources/application.properties): adicionada
+   seção "Actuator / Observabilidade" com
+   `management.endpoints.web.exposure.include=health,info,metrics`,
+   `management.endpoint.health.probes.enabled=true` e
+   `management.otlp.metrics.export.url=${MANAGEMENT_OTLP_METRICS_EXPORT_URL:}`.
+3. Em [logback-spring.xml](../../src/main/resources/logback-spring.xml) (item opcional do
+   plano, implementado): `CONSOLE_LOG_PATTERN` sobrescrito **antes** do `<include>` do
+   `base.xml` do Spring Boot, adicionando `[trace_id=%X{trace_id:-},span_id=%X{span_id:-}]` ao
+   padrão de log — os valores são injetados no MDC pelo OTel Java Agent (Fase 3) quando a
+   requisição/operação está dentro de um span ativo.
+
+### Bugs/obstáculos encontrados e resolvidos
+1. **Localização da auto-configuração `management.otlp.metrics.export.url` não óbvia**: o
+   Spring Boot 4.x reorganizou os módulos de autoconfigure — a classe
+   `OtlpMetricsExportAutoConfiguration` **não** está mais em `spring-boot-actuator-autoconfigure`
+   (onde estava em versões 3.x), e sim em um novo jar dedicado
+   `spring-boot-micrometer-metrics-4.1.1.jar` (pacote
+   `org.springframework.boot.micrometer.metrics.autoconfigure.export.otlp`). Isso foi apenas
+   uma investigação de diagnóstico (a propriedade documentada no plano já estava correta e
+   funcionou de primeira) — registrado aqui para referência futura caso alguém precise depurar
+   autoconfigurações do actuator neste projeto.
+2. **Hash bcrypt corrompido ao inserir via `docker exec ... mysql -e "..."` no PowerShell**:
+   ao criar um usuário de teste temporário para validar os endpoints autenticados do actuator,
+   o hash bcrypt (contendo `$2y$10$...`) foi silenciosamente corrompido porque o PowerShell
+   interpola `$variavel` dentro de **strings com aspas duplas** (mesmo quando usadas para
+   passar argumentos a um processo externo) — `$2y`, `$10` etc. foram expandidos para vazio.
+   Correção: usar **aspas simples** no PowerShell ao redor de comandos que contenham `$` que
+   não devem ser interpolados (ex.: hashes bcrypt, expressões regulares, JSON literal).
+
+### Testes de validação executados (todos com resultado ✅)
+1. `docker compose build app`: build completo com sucesso; `unzip -l` confirmou os 3 novos
+   jars empacotados: `spring-boot-actuator-4.1.1.jar`, `micrometer-registry-otlp-1.17.1.jar`,
+   `opentelemetry-instrumentation-annotations-2.31.1.jar`.
+2. `docker run --rm -v <repo>:/workspace maven:3.9.11-eclipse-temurin-25 mvn -B -q test` →
+   **exit code 0**, sem nenhuma linha de erro/stack trace de teste — confirma que a suíte de
+   testes existente continua passando com as novas dependências e propriedades.
+3. `docker compose up -d app`: log de startup mostrou
+   `"Exposing 3 endpoints beneath base path '/actuator'"` e `"Started BrewerApplication"` sem
+   erros; logs de console já exibindo o novo padrão `[trace_id=...,span_id=...]` em cada linha
+   (vazio fora de um span ativo, preenchido durante requisições HTTP).
+4. Autenticação via usuário de teste temporário (criado e **removido** ao final do teste) para
+   validar os endpoints protegidos pelo Spring Security (`anyRequest().authenticated()`, sem
+   exceção para `/actuator/**` — comportamento de segurança mantido inalterado, não foi feita
+   nenhuma alteração no `SecurityConfig`):
+   - `GET /actuator/health` (autenticado) → **200**,
+     `{"groups":["liveness","readiness"],"status":"UP"}` — confirma
+     `management.endpoint.health.probes.enabled=true` ativo.
+   - `GET /actuator/metrics` (autenticado) → **200**, lista incluindo métricas JVM, HikariCP,
+     executors, etc.
+5. **Validação direta no ClickHouse** de que o pilar de métricas do Spring (via
+   `micrometer-registry-otlp`, independente do agent) está realmente exportando: consulta a
+   `signoz_metrics.distributed_time_series_v4` (`labels LIKE '%brewer-springboot%'`) mostrou,
+   além das métricas já vistas na Fase 3, os contadores internos
+   **`otlp.exporter.exported`** e **`otlp.exporter.seen`** — instrumentação própria do
+   `OtlpMeterRegistry` do Micrometer, only presentes quando esse registry está de fato ativo e
+   exportando (não são produzidos pelo agent) — e métricas de pool de conexões JDBC
+   (`db.client.connections.*`, nomenclatura OTel semconv usada pelo binder HikariCP do
+   Micrometer 1.16+/1.17). Contagem de séries temporais para o serviço cresceu de 339
+   (Fase 3) para **1347** durante os testes desta fase.
+
+### Conclusão
+O pilar de métricas agora tem **duas fontes independentes** enviando dados para o SigNoz: o
+OTel Java Agent (auto-instrumentação JVM/HTTP/DB via semantic conventions) e o
+`micrometer-registry-otlp` do Spring Boot Actuator (métricas nativas do Spring/Micrometer,
+incluindo HikariCP). Os endpoints `/actuator/health` (com grupos liveness/readiness) e
+`/actuator/metrics` estão expostos e protegidos pelo mesmo modelo de segurança já existente na
+aplicação (nenhuma exceção de acesso anônimo foi adicionada). A suíte de testes unitários
+continua passando sem alterações.
+
+### Pendências para a próxima fase (Fase 5)
+- Instrumentar manualmente o fluxo de Vendas com `@WithSpan` (`CadastroVendaService`,
+  `VendaListener`, `VendasController`, `Mailer`, `FotosController`) — a dependência
+  `opentelemetry-instrumentation-annotations` já está disponível no classpath desde esta fase.
+- Fase 6 (opcional): documentação final e atualização do guia de execução local/Docker.

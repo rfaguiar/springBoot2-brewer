@@ -34,6 +34,8 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 		<jasperreports-fonts.version>7.0.7</jasperreports-fonts.version>
 		<!-- commons-beanutils was a transitive dependency of jasperreports 6.x; dropped in 7.x, now pinned explicitly (1.11.0 fixes CVE-2025-48734) -->
 		<commons-beanutils.version>1.11.0</commons-beanutils.version>
+		<!-- OpenTelemetry instrumentation annotations (@WithSpan) - alinhado a versao do javaagent (Dockerfile) -->
+		<opentelemetry-instrumentation-annotations.version>2.31.1</opentelemetry-instrumentation-annotations.version>
 </properties>
 <dependencies>
 <!-- Spring Boot 4 -->
@@ -44,6 +46,20 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <dependency>
 <groupId>org.springframework.boot</groupId>
 <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+<!-- Observabilidade: actuator (health/metrics) + registry OTLP (Micrometer) + anotacoes @WithSpan -->
+<dependency>
+<groupId>org.springframework.boot</groupId>
+<artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+<dependency>
+<groupId>io.micrometer</groupId>
+<artifactId>micrometer-registry-otlp</artifactId>
+</dependency>
+<dependency>
+<groupId>io.opentelemetry.instrumentation</groupId>
+<artifactId>opentelemetry-instrumentation-annotations</artifactId>
+<version>${opentelemetry-instrumentation-annotations.version}</version>
 </dependency>
 <dependency>
 <groupId>org.springframework.boot</groupId>
