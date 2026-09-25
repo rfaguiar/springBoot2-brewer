@@ -42,6 +42,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.Assert.*;
 
@@ -250,7 +251,7 @@ public class VendasControllerTest {
     public void testMetodoAdicionarItemDeveAdicionarUmaCervejaERetornarAVendaView() {
         Cerveja cerveja = CervejaBuilder.criarCerveja();
         List<ItemVenda> itens = ItemVendaBuilder.criarListaItenVenda();
-        Mockito.when(mockCervejaRepo.getOne(1L)).thenReturn(cerveja);
+        Mockito.when(mockCervejaRepo.findById(1L)).thenReturn(Optional.of(cerveja));
         Mockito.when(mockTabelaItens.getItens("123")).thenReturn(itens);
         Mockito.when(mockTabelaItens.getValorTotal("123")).thenReturn(new BigDecimal("1234"));
 
@@ -262,7 +263,7 @@ public class VendasControllerTest {
         assertEquals(Constantes.TABELA_ITENS_VENDA_VIEW, result.getViewName());
         assertTrue(ItemVendaBuilder.validarListaItensVenda(itens, itensResult));
         assertEquals(new BigDecimal("1234"), totalResult);
-        Mockito.verify(mockCervejaRepo).getOne(1L);
+        Mockito.verify(mockCervejaRepo).findById(1L);
         Mockito.verify(mockTabelaItens).adicionarItem("123", cerveja, 1);
         Mockito.verify(mockTabelaItens).getItens("123");
         Mockito.verify(mockTabelaItens).getValorTotal("123");

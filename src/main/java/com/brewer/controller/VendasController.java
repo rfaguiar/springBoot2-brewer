@@ -122,7 +122,10 @@ public class VendasController {
 	
 	@PostMapping("/item")
 	public ModelAndView adicionarItem(Long codigoCerveja, String uuid) {
-		Cerveja cerveja = cervejasRepo.getOne(codigoCerveja);
+		// findById (não getOne) evita LazyInitializationException: a cerveja precisa estar
+		// totalmente inicializada aqui, pois seu valor é lido fora de uma transação/sessão.
+		Cerveja cerveja = cervejasRepo.findById(codigoCerveja)
+				.orElseThrow(() -> new IllegalArgumentException("Cerveja não encontrada: " + codigoCerveja));
 		tabelaItens.adicionarItem(uuid, cerveja, 1);
 		return mvTabelaItensVenda(uuid);
 	}

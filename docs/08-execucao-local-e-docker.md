@@ -60,6 +60,17 @@ patch de pacotes críticos (`openssl`, `expat`) na imagem base, por segurança.
 
 ## Docker Compose (app + MySQL)
 
+> **Pré-requisito**: o serviço `app` está conectado a uma rede Docker externa
+> (`brewer-observability`, usada para observabilidade — ver
+> [11 · Observabilidade](11-observabilidade.md)), que precisa existir **antes** do primeiro
+> `docker compose up`:
+> ```bash
+> docker network create brewer-observability
+> ```
+> Isso é necessário mesmo que o stack do SigNoz não esteja rodando — sem o SigNoz, a aplicação
+> sobe normalmente, apenas sem exportar telemetria (o agent tenta e falha silenciosamente ao
+> conectar no coletor).
+
 Para subir a aplicação junto com o banco MySQL localmente, em um único comando:
 
 ```bash
@@ -69,8 +80,12 @@ docker compose up --build -d
 Aguarde o MySQL ficar saudável e a aplicação aplicar as migrações do Flyway, depois acesse:
 
 ```
-http://localhost:8080/login
+http://localhost:8081/login
 ```
+
+> A porta publicada do serviço `app` é **8081** (não 8080), pois a UI do SigNoz — quando em
+> execução — já ocupa a porta 8080 do host. Ver [11 · Observabilidade](11-observabilidade.md)
+> para subir o stack completo (app + MySQL + SigNoz) e visualizar traces/métricas/logs.
 
 Ver logs:
 
@@ -100,3 +115,4 @@ docker compose down -v
 - [04 · Catálogo Tecnológico](04-catalogo-tecnologico.md)
 - [09 · Qualidade e Testes](09-qualidade-e-testes.md)
 - [10 · Modernização e CI](10-modernizacao-e-ci.md)
+- [11 · Observabilidade (OpenTelemetry + SigNoz)](11-observabilidade.md)

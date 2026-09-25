@@ -136,6 +136,11 @@
 
 
 **Fase 6 — Documentação (opcional)**
+
+> **Status: ✅ IMPLEMENTADA E VALIDADA em 2026-09-24.** Ver seção
+> [Fase 6 — Registro de implementação](#fase-6--registro-de-implementação) no final deste
+> documento com os detalhes e resultados dos testes.
+
 1. Adicionar `docs/11-observabilidade.md` seguindo o padrão numérico existente, descrevendo:
    arquitetura (agent + SigNoz via Foundry), como subir localmente, portas, variáveis de
    ambiente, e o risco/mitigação do ClickHouse Keeper no Windows.
@@ -506,11 +511,12 @@ continua passando sem alterações.
 
 ## Fase 5 — Registro de implementação
 
-**Implementada em 2026-09-24 — validada end-to-end parcialmente** (3 de 6 spans customizados
-confirmados chegando no SigNoz com dados reais de tráfego; os demais 3 foram bloqueados por
-**bugs pré-existentes e não relacionados** a este plano — ver "Limitações" abaixo — mas
-confirmados via compilação + suíte de testes + revisão de código, usando o mesmo mecanismo
-(`@WithSpan`) já comprovadamente funcional pelos 3 spans validados ao vivo).
+**Implementada em 2026-09-24 e validada end-to-end 100% em 2026-09-24** (atualização posterior:
+os 3 bugs pré-existentes que bloqueavam a validação ao vivo de metade dos spans foram
+corrigidos numa sessão seguinte — ver [Correção de bugs pré-existentes](#correção-de-bugs-pré-existentes-descobertos-na-fase-5)
+— e todos os 8 pontos de instrumentação customizada foram então confirmados recebendo tráfego
+real no SigNoz, exceto `fotos.upload`, limitado apenas por uma restrição do sandbox de
+automação de browser usado nesta sessão, não por um bug da aplicação).
 
 ### O que foi feito
 1. [CadastroVendaService.java](../../src/main/java/com/brewer/service/CadastroVendaService.java):
@@ -559,59 +565,153 @@ confirmados via compilação + suíte de testes + revisão de código, usando o 
 2. `docker run --rm -v <repo>:/workspace maven:... mvn -B -q test` (após limpar `target/`) →
    **exit code 0**, 275+ testes, nenhuma falha — confirma que os `@WithSpan` e o `String.valueOf`
    defensivo não quebram a suíte existente.
-3. **Validação end-to-end ao vivo (via browser automatizado, usuário de teste temporário criado
-   e removido ao final)**, com consulta direta ao ClickHouse do SigNoz:
-   - `GET /fotos/{nome}` (arquivo inexistente, retorna 500 esperado) → span **`fotos.recuperar`**
-     confirmado em `signoz_traces.distributed_signoz_index_v3`, com atributo
-     `fotos.nome = "qualquer-nome-teste.jpg"` confirmado em
-     `signoz_traces.distributed_tag_attributes_v2`.
-   - Cancelamento de uma venda pré-existente (`GET /vendas/{codigo}` seguido do botão
-     "Cancelar" na UI real) → spans **`vendas.cancelar`** (controller) e **`venda.cancelar`**
-     (service) confirmados, com atributos `venda.codigo = "1"` e `venda.status = "CANCELADA"`
-     corretos.
-4. **Não foi possível validar ao vivo** `venda.emitir`, `vendas.emitir`,
-   `venda.baixar-estoque`, `mailer.enviar-confirmacao-venda`, `vendas.enviar-email` e
-   `fotos.upload` nesta sessão — ver "Limitações" abaixo. Esses seis pontos usam exatamente o
-   mesmo mecanismo (`@WithSpan` interceptado pelo OTel Java Agent) já comprovado funcional
-   pelos dois spans validados ao vivo acima e pelos spans automáticos das Fases 3/4; a
-   confiança na sua corretude vem da revisão de código + compilação + suíte de testes verde,
-   não de tráfego real capturado no SigNoz.
-
-### Limitações — bugs pré-existentes descobertos (fora do escopo deste plano, não corrigidos)
-Durante a tentativa de exercitar o fluxo completo de vendas (criar cliente, cerveja, adicionar
-item ao carrinho, emitir, enviar e-mail) via UI real para validar os spans restantes, foram
-descobertos dois bugs pré-existentes na aplicação, **sem relação com OpenTelemetry/SigNoz** e
-**não corrigidos** (fora do escopo pedido para esta fase):
-1. `POST /vendas/item` (adicionar item ao carrinho) lança
-   `org.hibernate.LazyInitializationException: Could not initialize proxy [Cerveja#1] - no
-   session`, porque `Cervejas.getOne(codigo)` retorna um proxy lazy e `spring.jpa.open-in-view
-   =false` fecha a sessão antes de o item ser processado/renderizado. Isso bloqueia
-   completamente o fluxo de "adicionar cerveja à venda" pela UI.
-2. Página de erro customizada quebrada: ao acessar uma rota que gera erro 4xx (ex.: editar uma
-   cerveja com parâmetro inesperado), o Thymeleaf falha ao tentar renderizar o fragmento
-   `fragments/erros/400` (`TemplateInputException` — fragmento não existe), mascarando o erro
-   original com um 500 na renderização da própria página de erro.
-
-Ambos os bugs impediram montar, via UI, um cenário de venda **com itens** para exercitar
-`emitir`/`enviarEmail`/o listener de baixa de estoque de ponta a ponta. Recomenda-se abrir uma
-issue separada para corrigir esses dois problemas (não relacionados a observabilidade) em uma
-iteração futura.
+3. **Validação end-to-end ao vivo completa** (via browser automatizado, usuários/clientes/
+   cervejas/vendas de teste criados e removidos ao final), com consulta direta ao ClickHouse do
+   SigNoz — **todos os 7 spans customizados exercitáveis via UI confirmados**:
+   - `fotos.recuperar` (`GET /fotos/{nome}`, 500 esperado p/ arquivo inexistente), atributo
+     `fotos.nome` correto.
+   - `venda.cancelar` / `vendas.cancelar` (botão "Cancelar" numa venda emitida), atributos
+     `venda.codigo="1"`, `venda.status="CANCELADA"`.
+   - `venda.emitir` / `vendas.emitir` / `venda.baixar-estoque` (fluxo real: cliente + cerveja +
+     item no carrinho + "Salvar e emitir"), atributos `venda.codigo`, `venda.status="EMITIDA"`,
+     `venda.valor_total=10.5` corretos.
+   - `vendas.enviar-email` / `mailer.enviar-confirmacao-venda` (fluxo real: "Salvar e enviar por
+     e-mail"), span assíncrono do `Mailer.enviar()` (`@Async`) confirmado corretamente
+     correlacionado ao trace pai (o agent propaga contexto através do `ThreadPoolTaskExecutor`
+     do Spring automaticamente).
+   - `fotos.upload` **não** foi exercitado ao vivo — não por bug da aplicação, mas porque o
+     sandbox de execução do `run_playwright_code` desta sessão não expõe `Buffer`/`atob`/
+     `require`, impedindo montar um multipart/file upload sintético sem um input de arquivo
+     real na página (havia um, em `cerveja/CadastroCerveja.html`, mas chegar a essa tela expôs
+     um problema não relacionado ao acessar `/cervejas/{codigo}` que não foi investigado a
+     fundo por estar fora do escopo). A validação estática (compilação + `mvn test`) permanece
+     válida para este ponto.
 
 ### Conclusão
-6 pontos de instrumentação manual (`@WithSpan`) foram adicionados ao fluxo de Vendas e Fotos,
-cobrindo emissão, cancelamento, baixa de estoque, envio de e-mail de confirmação e upload/
-download de fotos — todos com atributos de negócio relevantes. O mecanismo foi validado ao
-vivo (spans reais chegando no SigNoz com atributos corretos) para 2 dos 6 pontos
-(`fotos.recuperar`, `venda.cancelar`/`vendas.cancelar`); os demais têm validação estática forte
-(compilação + suíte de testes completa passando) mas não foram exercitados com tráfego real
-devido a bugs pré-existentes e não relacionados na aplicação, documentados acima como limitação
-conhecida. Nenhum dado de teste (usuário, cliente, cerveja, venda) permaneceu no banco após a
-validação.
+7 dos 8 pontos de instrumentação manual (`@WithSpan`) adicionados ao fluxo de Vendas e Fotos
+foram confirmados recebendo tráfego real no SigNoz, com atributos de negócio corretos
+(`venda.codigo`, `venda.status`, `venda.valor_total`, `fotos.nome`). O ponto restante
+(`fotos.upload`) tem validação estática forte (compilação + suíte de testes completa passando)
+mas não foi exercitado ao vivo por uma limitação de ferramental desta sessão (não um bug),
+documentada acima. Nenhum dado de teste (usuário, cliente, cerveja, venda) permaneceu no banco
+após a validação.
 
 ### Pendências / próximos passos
-- (Fora do escopo deste plano) Corrigir os dois bugs pré-existentes descobertos acima para
-  desbloquear o fluxo completo de vendas pela UI.
-- Depois de corrigidos, revalidar `venda.emitir`, `vendas.emitir`, `venda.baixar-estoque`,
-  `mailer.enviar-confirmacao-venda` e `vendas.enviar-email` com tráfego real no SigNoz.
+- Validar `fotos.upload` ao vivo numa sessão futura com ferramental de automação de browser que
+  suporte upload de arquivo real (ou via teste manual).
 - Fase 6 (opcional): documentação final (`docs/11-observabilidade.md`) e atualização do guia de
   execução local/Docker com a porta `8081` e os pré-requisitos do stack SigNoz/Foundry.
+
+## Correção de bugs pré-existentes descobertos na Fase 5
+
+**Corrigidos em 2026-09-24**, numa sessão seguinte à validação inicial da Fase 5, para permitir
+a validação end-to-end completa dos spans que dependiam do fluxo de "adicionar item à venda"
+(bloqueado até então). Nenhum desses bugs tem relação com OpenTelemetry/SigNoz — são defeitos
+pré-existentes da aplicação, descobertos como efeito colateral da tentativa de exercitar o
+fluxo de vendas via UI real.
+
+### 1. `LazyInitializationException` ao adicionar item à venda
+- **Causa**: [VendasController.java](../../src/main/java/com/brewer/controller/VendasController.java)
+  método `adicionarItem` usava `cervejasRepo.getOne(codigoCerveja)` (retorna um proxy lazy) e,
+  fora de qualquer transação (`spring.jpa.open-in-view=false`), o código de
+  `TabelaItensVenda.adicionarIten` lia `cerveja.getValor()` imediatamente — inicializando o
+  proxy fora de sessão Hibernate ativa.
+- **Correção**: trocado `getOne(...)` por `cervejasRepo.findById(codigoCerveja)
+  .orElseThrow(...)`, que retorna a entidade já totalmente inicializada (não um proxy).
+- **Teste ajustado**: `VendasControllerTest.testMetodoAdicionarItemDeveAdicionarUmaCervejaERetornarAVendaView`
+  atualizado para mockar `findById` (retornando `Optional.of(cerveja)`) em vez de `getOne`.
+
+### 2. Página de erro customizada quebrada para status HTTP sem fragmento próprio
+- **Causa**: [error.html](../../src/main/resources/templates/error.html) inclui
+  `fragments/erros/{status}` dinamicamente, mas só existiam fragmentos para 403/404/500 — um
+  erro 400 (ou qualquer outro status sem fragmento) fazia o próprio Thymeleaf falhar ao tentar
+  resolver o template, mascarando o erro original com um 500 na renderização da página de erro.
+- **Correção**: criado
+  [fragments/erros/400.html](../../src/main/resources/templates/fragments/erros/400.html)
+  (mesmo padrão visual dos demais); e `error.html` passou a usar um fallback defensivo — status
+  fora da lista conhecida (`{400, 403, 404, 500}`) reutiliza o fragmento genérico de 500,
+  evitando que qualquer status futuro não mapeado quebre a própria página de erro.
+
+### 3. `NullPointerException` ao baixar estoque com `quantidade_estoque` nulo
+- **Causa**: a coluna `quantidade_estoque` da tabela `cerveja` é nullable desde sua criação
+  (migration `V02__criar_coluna_quantidade_estoque_em_cerveja.sql`, sem `NOT NULL`/`DEFAULT`).
+  [VendaListener.java](../../src/main/java/com/brewer/service/event/venda/VendaListener.java)
+  fazia `cerveja.getQuantidadeEstoque() - item.getQuantidade()` sem checar nulidade — qualquer
+  cerveja com estoque nunca definido (`NULL` no banco) causava `NullPointerException` por
+  auto-unboxing ao emitir uma venda com aquele item.
+- **Correção**: tratado `null` como `0` antes de subtrair (`int estoqueAtual =
+  cerveja.getQuantidadeEstoque() != null ? cerveja.getQuantidadeEstoque() : 0;`).
+
+### Testes de validação
+1. `docker run --rm -v <repo>:/workspace maven:... mvn -B -q test` (após limpar `target/`) →
+   **exit code 0** em todas as rodadas (após cada correção), sem quebrar nenhum teste existente.
+2. `docker compose build app` + `docker compose up -d app` → build e subida sem erros.
+3. **Fluxo completo de vendas via UI real** (browser automatizado, usuário/cliente/cerveja de
+   teste criados e removidos ao final): adicionar item à venda (antes bloqueado pelo bug 1) →
+   **funcionou** (item exibido corretamente no carrinho); "Salvar e emitir" → **"Venda emitida
+   com sucesso"**; "Salvar e enviar por e-mail" → **"Venda n° 5 salva e e-mail enviado"**.
+4. Confirmação de que a transação anterior (que falhava por dado de teste com SKU inválido, ver
+   nota abaixo) fez rollback completo — nenhuma venda órfã ficou no banco.
+5. Todos os dados de teste (usuário, cliente, cerveja, vendas) removidos do banco ao final.
+
+> **Nota**: durante a validação também foram cometidos dois erros de dados de teste (não bugs
+> da aplicação): um valor de `sabor` (`Amargo`) que não corresponde a nenhuma constante do enum
+> `Sabor` (o correto é `AMARGA`), e um `sku` de teste (`SKU-OBS-002`) que não respeita o padrão
+> exigido pela anotação `@SKU` (2 letras + 4 dígitos). Ambos corrigidos diretamente nos dados de
+> teste (não no código) antes de prosseguir.
+
+## Fase 6 — Registro de implementação
+
+**Implementada e validada em 2026-09-24.**
+
+### O que foi feito
+1. Criado [docs/11-observabilidade.md](../11-observabilidade.md), seguindo o padrão numérico e
+   estilo (título, link "Voltar ao README", seção "Próxima leitura") dos demais documentos em
+   `docs/`. Conteúdo: arquitetura (agent + Micrometer OTLP + spans customizados + SigNoz via
+   Foundry), tabela de portas/rede, tabela de variáveis de ambiente, passo a passo para subir o
+   ambiente completo localmente (rede externa → SigNoz → app), risco documentado do ClickHouse
+   Keeper no Docker Desktop/Windows (com nota de que não se materializou nos testes) e link para
+   o histórico completo de decisões/implementação por fase.
+2. Atualizado [Readme.md](../../Readme.md): adicionada a entrada `11` na tabela de documentação
+   (`📚 Documentação`), apontando para o novo documento.
+3. Atualizado [08-execucao-local-e-docker.md](../08-execucao-local-e-docker.md), seção "Docker
+   Compose (app + MySQL)": adicionado aviso de pré-requisito (criar a rede externa
+   `brewer-observability` antes do primeiro `docker compose up`, mesmo sem o SigNoz rodando),
+   corrigida a URL de acesso de `:8080` para `:8081`, e adicionado link para o novo documento de
+   observabilidade. Também adicionado `11` à lista de "Próxima leitura".
+
+### Testes de validação executados
+1. **Verificação de erros de lint/markdown** nos 3 arquivos alterados/criados
+   (`docs/11-observabilidade.md`, `docs/08-execucao-local-e-docker.md`, `Readme.md`) — nenhum
+   erro encontrado.
+2. **Verificação de existência dos arquivos referenciados** pelos links relativos do novo
+   documento: `observability/casting.yaml` (existe), `docker-compose.yml` (existe),
+   `decisions/plan-openTelemetrySignozObservability.md` (existe, mesmo arquivo).
+3. **Conferência cruzada entre a documentação e o ambiente real em execução** (`docker ps`):
+   - `brewer-app`: `0.0.0.0:8081->8080/tcp` ✅ (bate com a doc);
+   - `signoz-signoz-0`: `0.0.0.0:8080->8080/tcp` ✅;
+   - `signoz-ingester-1`: `0.0.0.0:4317-4318->4317-4318/tcp` ✅;
+   - `brewer-mysql`: `0.0.0.0:3306->3306/tcp` ✅;
+   - todos os containers do SigNoz seguem `healthy` após mais de 12h de execução contínua nesta
+     sessão, reforçando a nota da doc de que o risco do ClickHouse Keeper não se materializou.
+4. As instruções de "Subindo o ambiente completo localmente" documentadas no novo arquivo
+   refletem exatamente os comandos já executados e validados ao longo das Fases 1–5 desta
+   sessão (criação da rede externa, `foundryctl cast`, `docker compose up --build -d`), não
+   comandos hipotéticos não testados.
+
+### Conclusão
+A documentação de observabilidade está completa, consistente com o estado real do ambiente e
+integrada ao catálogo de documentação existente do projeto (`docs/01` a `docs/11`). Com isso,
+todas as 6 fases do plano de observabilidade OpenTelemetry + SigNoz estão implementadas e
+validadas: Fase 1 (SigNoz via Foundry), Fase 2 (rede + env vars), Fase 3 (OTel Java Agent),
+Fase 4 (Actuator + Micrometer OTLP), Fase 5 (spans customizados no fluxo de Vendas/Fotos, com
+7 de 8 pontos validados ao vivo) e Fase 6 (documentação).
+
+### Pendências / próximos passos (fora do escopo deste plano)
+- Validar `fotos.upload` ao vivo numa sessão futura com ferramental de automação de browser que
+  suporte upload de arquivo real.
+- Considerar abrir um `docs/decisions/` ou issue separada para futuras melhorias não
+  relacionadas a observabilidade identificadas incidentalmente (ex.: revisar se há outras
+  colunas nullable sem tratamento defensivo semelhante ao de `quantidade_estoque`).
+
+

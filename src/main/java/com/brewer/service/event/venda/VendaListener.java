@@ -26,7 +26,9 @@ public class VendaListener {
 
 		for(ItemVenda item :vendaEvent.getVenda().getItens()){
 			Cerveja cerveja = cervejasRepo.getOne(item.getCerveja().getCodigo());
-			cerveja.setQuantidadeEstoque(cerveja.getQuantidadeEstoque() - item.getQuantidade());
+			// getQuantidadeEstoque() pode ser null (coluna sem NOT NULL/default na migration V02).
+			int estoqueAtual = cerveja.getQuantidadeEstoque() != null ? cerveja.getQuantidadeEstoque() : 0;
+			cerveja.setQuantidadeEstoque(estoqueAtual - item.getQuantidade());
 			cervejasRepo.save(cerveja);
 			
 		}

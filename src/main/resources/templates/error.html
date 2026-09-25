@@ -6,7 +6,10 @@
 
     <th:block layout:fragment="conteudo">
 
-        <th:block th:replace="|fragments/erros/${status}|" />
+        <!-- Status sem fragmento próprio caem no fragmento genérico de 500 (evita falha ao resolver o include). -->
+        <th:block th:with="fragmentoErro=${#lists.contains({400, 403, 404, 500}, status)} ? ${status} : 500">
+            <th:block th:replace="|fragments/erros/${fragmentoErro}|" />
+        </th:block>
 
     </th:block>
 

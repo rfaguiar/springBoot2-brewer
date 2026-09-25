@@ -24,6 +24,7 @@ engenheiro(a) de software — cada tópico é independente e pode ser lido isola
 | 08 | [Execução Local e Docker](docs/08-execucao-local-e-docker.md) | Como rodar com Maven, Docker e Docker Compose |
 | 09 | [Qualidade e Testes](docs/09-qualidade-e-testes.md) | Stack de testes, mutation testing (PIT) e CI |
 | 10 | [Modernização e Ferramentas Auxiliares](docs/10-modernizacao-e-ci.md) | Assessment de nuvem (AppCAT), plano de containerização |
+| 11 | [Observabilidade (OpenTelemetry + SigNoz)](docs/11-observabilidade.md) | Traces, métricas e logs via OTel Java Agent + SigNoz, spans customizados no fluxo de Vendas |
 
 ## 🚀 Quick start
 
